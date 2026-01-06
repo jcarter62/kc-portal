@@ -3,13 +3,32 @@ import time
 from fastapi import Request
 import models
 from database import SessionLocal
+import os
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+LOG_FILE = os.getenv("LOG_FILE", "app.log")
+
+# Create a custom logger
 logger = logging.getLogger("kc-portal")
+logger.setLevel(logging.INFO)
+
+# Create handlers
+c_handler = logging.StreamHandler()
+f_handler = logging.FileHandler(LOG_FILE)
+c_handler.setLevel(logging.INFO)
+f_handler.setLevel(logging.INFO)
+
+# Create formatters and add it to handlers
+log_format = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+c_handler.setFormatter(log_format)
+f_handler.setFormatter(log_format)
+
+# Add handlers to the logger
+logger.addHandler(c_handler)
+logger.addHandler(f_handler)
+
+# Disable uvicorn access logging to avoid duplicate/standard logs
+logging.getLogger("uvicorn.access").disabled = True
 
 def get_client_type(user_agent: str) -> str:
     if not user_agent:
