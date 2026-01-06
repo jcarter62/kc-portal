@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Members - {{ app_title | default('KC Portal') }}{% endblock %}
+
+{% block content %}
+    <style>
+        .card-body {
+            position: relative;
+        }
+        .edit-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
+
+    <h1>Member Listing</h1>
+
+    <div class="mb-3">
+        <input type="text" id="memberSearch" class="form-control" placeholder="Search members...">
+    </div>
+
+    <div class="row" id="member-list">
+        {% for member in members %}
+        <div class="col-md-4 mb-4 member-card">
+            <div class="card">
+                <div class="card-body">
+                    {% if user and user.is_admin %}
+                    <a href="/admin/users/{{ member.id }}/edit" class="btn btn-sm btn-outline-primary edit-button">Edit</a>
+                    {% endif %}
+                    <h5 class="card-title">
+                        {{ member.first_name }} {{ member.last_name }}
+                        {% if member.position %}
+                            <small class="text-muted">- {{ member.position }}</small>
+                        {% endif %}
+                    </h5>
+                    <p class="card-text">
+                        <strong>Phone:</strong> {{ member.phone_number }}<br>
+                        <strong>Email:</strong> {{ member.email }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('memberSearch');
+            const memberCards = document.querySelectorAll('.member-card');
+            const storageKey = 'memberSearchFilter';
+
+            // Function to filter members
+            function filterMembers() {
+                const searchTerm = searchInput.value.toLowerCase();
+                localStorage.setItem(storageKey, searchTerm); // Save to local storage
+
+                memberCards.forEach(card => {
+                    const cardText = card.textContent.toLowerCase();
+                    if (cardText.includes(searchTerm)) {
+                        card.style.display = '';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            }
+
+            // Restore filter from local storage on page load
+            const savedFilter = localStorage.getItem(storageKey);
+            if (savedFilter) {
+                searchInput.value = savedFilter;
+                filterMembers();
+            }
+
+            // Add event listener for input changes
+            searchInput.addEventListener('keyup', filterMembers);
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}{{ "Edit" if edit_user else "New" }} User - {{ app_title | default('KC Portal') }}{% endblock %}
+
+{% block content %}
+    <h1>{{ "Edit" if edit_user else "New" }} User</h1>
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    <form method="post">
+        <div class="mb-3">
+            <label for="membership_number" class="form-label">Membership Number</label>
+            <input type="text" class="form-control" id="membership_number" name="membership_number" value="{{ edit_user.membership_number if edit_user else '' }}" required>
+        </div>
+        <div class="mb-3">
+            <label for="first_name" class="form-label">First Name</label>
+            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ edit_user.first_name if edit_user else '' }}">
+        </div>
+        <div class="mb-3">
+            <label for="last_name" class="form-label">Last Name</label>
+            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ edit_user.last_name if edit_user else '' }}">
+        </div>
+        <div class="mb-3">
+            <label for="position" class="form-label">Position</label>
+            <input type="text" class="form-control" id="position" name="position" value="{{ edit_user.position if edit_user else '' }}">
+        </div>
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ edit_user.email if edit_user and edit_user.email else '' }}">
+        </div>
+        <div class="mb-3">
+            <label for="phone_number" class="form-label">Phone Number</label>
+            <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ edit_user.phone_number if edit_user else '' }}">
+        </div>
+        <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="is_admin" name="is_admin" {% if edit_user and edit_user.is_admin %}checked{% endif %}>
+            <label class="form-check-label" for="is_admin">Is Admin</label>
+        </div>
+        <button type="submit" class="btn btn-primary">Save</button>
+        <a href="/admin/users" class="btn btn-secondary">Cancel</a>
+    </form>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Pages - {{ app_title | default('KC Portal') }}{% endblock %}
+
+{% block content %}
+    <h1>Manage Pages</h1>
+    <a href="/admin/pages/new" class="btn btn-success mb-3">Create New Page</a>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Slug</th>
+                <th>Public</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for page in pages %}
+            <tr>
+                <td>{{ page.title }}</td>
+                <td>{{ page.slug }}</td>
+                <td>{{ "Yes" if page.is_public else "No" }}</td>
+                <td>
+                    <a href="/admin/pages/{{ page.id }}/edit" class="btn btn-sm btn-primary">Edit</a>
+                    <form action="/admin/pages/{{ page.id }}/delete" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

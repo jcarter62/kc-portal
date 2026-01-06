@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block title %}About - {{ app_title | default('KC Portal') }}{% endblock %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-md-12">
+            {{ page.content | safe if page else "" }}
+        </div>
+    </div>
+{% endblock %}

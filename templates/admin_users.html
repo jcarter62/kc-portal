@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Users - {{ app_title | default('KC Portal') }}{% endblock %}
+
+{% block content %}
+    <h1>Manage Users</h1>
+    <a href="/admin/users/new" class="btn btn-success mb-3">Create New User</a>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Membership #</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Admin</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr>
+                <td>{{ u.membership_number }}</td>
+                <td>{{ u.first_name }} {{ u.last_name }}</td>
+                <td>{{ u.email }}</td>
+                <td>{{ "Yes" if u.is_admin else "No" }}</td>
+                <td>
+                    <a href="/admin/users/{{ u.id }}/edit" class="btn btn-sm btn-primary">Edit</a>
+                    <form action="/admin/users/{{ u.id }}/delete" method="post" style="display:inline;">
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
