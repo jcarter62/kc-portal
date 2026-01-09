@@ -1,34 +1,120 @@
-
-table {
-    width: 80%;
-  border-collapse: collapse;
-  border: 2px solid black; /* Outer border */
+:root {
+    --primary-color: #003366; /* Deep Blue */
+    --secondary-color: #f8f9fa;
+    --accent-color: #ffcc00; /* Gold/Yellow accent */
+    --text-color: #333;
+    --nav-bg: #003366;
 }
 
-table th, table td {
-  border: 2px solid black; /* Inner cell borders */
-    text-align: left;
-    padding: 8px;
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text-color);
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.navbar {
+    background-color: var(--nav-bg) !important;
+    border-bottom: 4px solid var(--accent-color);
+    padding: 1rem 0;
+}
+
+.navbar-brand {
+    font-weight: bold;
+    font-size: 1.5rem;
+    color: #fff !important;
+}
+
+.nav-link {
+    color: rgba(255,255,255,0.9) !important;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 0.5rem 1rem !important;
+}
+
+.nav-link:hover {
+    color: var(--accent-color) !important;
 }
 
 #logo {
     background-color: white;
+    padding: 2px;
+    border-radius: 4px;
+    margin-right: 10px;
 }
 
-/*.custom-table {*/
-/*    width: 80%;*/
-/*    table-layout: fixed;*/
-/*    margin: 0 auto;*/
-/*    border-collapse: collapse;*/
-/*    border: 2px solid black; !* Outer border *!*/
-/*}*/
-/*.halfwidth {*/
-/*    width: 50%;*/
-/*}*/
+.container {
+    max-width: 1140px;
+}
 
-/*.custom-table th, .custom-table td {*/
-/*    border: 2px solid black; !* Inner cell borders *!*/
-/*    text-align: left;*/
-/*    padding: 8px;*/
-/*}*/
+/* Card Styling */
+.card {
+    border: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
 
+.card-header {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: bold;
+    border-radius: 8px 8px 0 0 !important;
+}
+
+/* Button Styling */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: #002244;
+    border-color: #002244;
+}
+
+/* Table Styling */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+table th {
+    background-color: #f2f2f2;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+}
+
+table th, table td {
+    padding: 12px;
+    border: 1px solid #dee2e6;
+}
+
+/* Footer Styling */
+footer {
+    background-color: var(--primary-color) !important;
+    color: white !important;
+    margin-top: auto;
+}
+
+footer .text-muted {
+    color: rgba(255,255,255,0.7) !important;
+}
+
+/* Home Page Specific */
+.hero-section {
+    background-color: #f8f9fa;
+    padding: 4rem 0;
+    text-align: center;
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 2rem;
+}
+
+h1, h2, h3 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+}
