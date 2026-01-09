@@ -18,12 +18,12 @@ body {
 .navbar {
     background-color: var(--nav-bg) !important;
     border-bottom: 4px solid var(--accent-color);
-    padding: 1rem 0;
+    padding: 0.5rem 0;
 }
 
 .navbar-brand {
     font-weight: bold;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     color: #fff !important;
 }
 
@@ -48,6 +48,8 @@ body {
 
 .container {
     max-width: 1140px;
+    padding-left: 15px;
+    padding-right: 15px;
 }
 
 /* Card Styling */
@@ -55,7 +57,7 @@ body {
     border: none;
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     border-radius: 8px;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
 }
 
 .card-header {
@@ -76,7 +78,11 @@ body {
     border-color: #002244;
 }
 
-/* Table Styling */
+/* Table Styling - Responsive */
+.table-responsive {
+    border: 0;
+}
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -108,7 +114,7 @@ footer .text-muted {
 /* Home Page Specific */
 .hero-section {
     background-color: #f8f9fa;
-    padding: 4rem 0;
+    padding: 2rem 0;
     text-align: center;
     border-bottom: 1px solid #dee2e6;
     margin-bottom: 2rem;
@@ -117,4 +123,63 @@ footer .text-muted {
 h1, h2, h3 {
     color: var(--primary-color);
     margin-bottom: 1.5rem;
+    word-wrap: break-word;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+
+    #logo {
+        height: 40px;
+    }
+
+    .hero-section {
+        padding: 1.5rem 0;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+    }
+
+    .card-body {
+        padding: 1rem;
+    }
+
+    /* Make tables stack on small screens if they are too wide */
+    .table-stackable thead {
+        display: none;
+    }
+
+    .table-stackable tr {
+        display: block;
+        margin-bottom: 1rem;
+        border: 1px solid #dee2e6;
+    }
+
+    .table-stackable td {
+        display: block;
+        text-align: right;
+        border: none;
+        border-bottom: 1px solid #eee;
+        position: relative;
+        padding-left: 50%;
+    }
+
+    .table-stackable td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 10px;
+        width: 45%;
+        text-align: left;
+        font-weight: bold;
+    }
+}
+
+/* Image handling in content */
+img {
+    max-width: 100%;
+    height: auto;
 }

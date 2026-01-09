@@ -4,8 +4,24 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-md-12">
-            {{ page.content | safe if page else "" }}
+        <div class="col-12 overflow-hidden">
+            <div class="page-content">
+                {{ page.content | safe if page else "" }}
+            </div>
         </div>
     </div>
+
+    <style>
+        /* Ensure images and tables within dynamic content don't break layout */
+        .page-content img {
+            max-width: 100%;
+            height: auto !important;
+        }
+        .page-content table {
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
 {% endblock %}
