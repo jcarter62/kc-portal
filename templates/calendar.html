@@ -4,8 +4,39 @@
 
 {% block content %}
     <div class="row">
-        <div class="col-md-12">
+        <div class="col-md-12" id="calendar-content">
             {{ page.content | safe if page else "" }}
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find all tables in the calendar content
+            const tables = document.querySelectorAll('#calendar-content table');
+
+            tables.forEach(table => {
+                // Add the stackable class
+                table.classList.add('table-stackable');
+
+                // Get headers from the first row
+                const firstRow = table.querySelector('tr');
+                if (!firstRow) return;
+
+                const headers = Array.from(firstRow.querySelectorAll('td, th')).map(cell => cell.textContent.trim());
+
+                // Add data-label to each cell in subsequent rows
+                const rows = table.querySelectorAll('tr');
+                rows.forEach((row, rowIndex) => {
+                    if (rowIndex === 0) return; // Skip header row
+
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach((cell, cellIndex) => {
+                        if (headers[cellIndex]) {
+                            cell.setAttribute('data-label', headers[cellIndex]);
+                        }
+                    });
+                });
+            });
+        });
+    </script>
 {% endblock %}

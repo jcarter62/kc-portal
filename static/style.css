@@ -81,6 +81,8 @@ body {
 /* Table Styling - Responsive */
 .table-responsive {
     border: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -149,7 +151,8 @@ h1, h2, h3 {
     }
 
     /* Make tables stack on small screens if they are too wide */
-    .table-stackable thead {
+    .table-stackable thead,
+    .table-stackable tr:first-child:not(thead tr) {
         display: none;
     }
 
@@ -157,6 +160,9 @@ h1, h2, h3 {
         display: block;
         margin-bottom: 1rem;
         border: 1px solid #dee2e6;
+        background: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-radius: 4px;
     }
 
     .table-stackable td {
@@ -165,16 +171,22 @@ h1, h2, h3 {
         border: none;
         border-bottom: 1px solid #eee;
         position: relative;
-        padding-left: 50%;
+        padding-left: 40% !important;
+        min-height: 2.5rem;
+    }
+
+    .table-stackable td:last-child {
+        border-bottom: 0;
     }
 
     .table-stackable td::before {
         content: attr(data-label);
         position: absolute;
         left: 10px;
-        width: 45%;
+        width: 35%;
         text-align: left;
         font-weight: bold;
+        color: var(--primary-color);
     }
 }
 
