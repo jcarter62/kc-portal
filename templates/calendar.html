@@ -22,6 +22,9 @@
                 const firstRow = table.querySelector('tr');
                 if (!firstRow) return;
 
+                // Mark the first row as a header so we can hide it on mobile
+                firstRow.classList.add('stackable-header');
+
                 const headers = Array.from(firstRow.querySelectorAll('td, th')).map(cell => cell.textContent.trim());
 
                 // Add data-label to each cell in subsequent rows

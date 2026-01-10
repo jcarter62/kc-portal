@@ -152,8 +152,8 @@ h1, h2, h3 {
 
     /* Make tables stack on small screens if they are too wide */
     .table-stackable thead,
-    .table-stackable tr:first-child:not(thead tr) {
-        display: none;
+    .table-stackable .stackable-header {
+        display: none !important;
     }
 
     .table-stackable tr {
