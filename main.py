@@ -96,11 +96,20 @@ def render_template(template_name: str, context: dict, db: Session):
 import admin
 app.include_router(admin.router)
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return FileResponse("static/kofc_r_emblem_rgb_pos.png")
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     page = db.query(models.Page).filter(models.Page.slug == "home").first()
     return render_template("home.html", {"request": request, "user": user, "page": page}, db)
+
+@app.head("/", response_class=HTMLResponse)
+async def head_home():
+    home_head = "<html><head><title>Portal Head</title></head></html>"
+    return home_head
 
 @app.get("/about", response_class=HTMLResponse)
 async def about(request: Request, db: Session = Depends(get_db)):
@@ -311,7 +320,7 @@ async def get_media(file_path: str):
     # Prevent directory traversal
     safe_path = os.path.normpath(os.path.join(MEDIA_FOLDER, file_path))
     if not safe_path.startswith(os.path.abspath(MEDIA_FOLDER)):
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail="File find not found")
         
     if os.path.exists(safe_path) and os.path.isfile(safe_path):
         return FileResponse(safe_path)
