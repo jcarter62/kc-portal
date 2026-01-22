@@ -9,37 +9,106 @@
         </div>
     </div>
 
+    <style>
+        .past-event {
+            opacity: 0.6;
+            background-color: #f8f9fa;
+        }
+        .past-event.collapsed-row {
+            display: none;
+        }
+        #toggle-past-events {
+            margin-bottom: 1rem;
+        }
+        .calendar-controls {
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: flex-end;
+        }
+    </style>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Find all tables in the calendar content
-            const tables = document.querySelectorAll('#calendar-content table');
+            const calendarContent = document.getElementById('calendar-content');
+            const tables = calendarContent.querySelectorAll('table');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            let hasPastEvents = false;
 
             tables.forEach(table => {
-                // Add the stackable class
                 table.classList.add('table-stackable');
+                const rows = Array.from(table.querySelectorAll('tr'));
+                if (rows.length === 0) return;
 
-                // Get headers from the first row
-                const firstRow = table.querySelector('tr');
-                if (!firstRow) return;
-
-                // Mark the first row as a header so we can hide it on mobile
+                const firstRow = rows[0];
                 firstRow.classList.add('stackable-header');
-
                 const headers = Array.from(firstRow.querySelectorAll('td, th')).map(cell => cell.textContent.trim());
 
-                // Add data-label to each cell in subsequent rows
-                const rows = table.querySelectorAll('tr');
                 rows.forEach((row, rowIndex) => {
-                    if (rowIndex === 0) return; // Skip header row
+                    if (rowIndex === 0) return;
 
                     const cells = row.querySelectorAll('td');
+                    let eventDate = null;
+
                     cells.forEach((cell, cellIndex) => {
                         if (headers[cellIndex]) {
                             cell.setAttribute('data-label', headers[cellIndex]);
+
+                            // Try to parse date from the first column (usually "Date")
+                            if (headers[cellIndex].toLowerCase().includes('date')) {
+                                const dateStr = cell.textContent.trim();
+                                // Handle MM/DD/YYYY format
+                                const dateParts = dateStr.split('/');
+                                if (dateParts.length === 3) {
+                                    const month = parseInt(dateParts[0]) - 1;
+                                    const day = parseInt(dateParts[1]);
+                                    const year = parseInt(dateParts[2]);
+                                    if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
+                                        eventDate = new Date(year, month, day);
+                                    }
+                                }
+                            }
                         }
                     });
+
+                    if (eventDate && eventDate < today) {
+                        row.classList.add('past-event', 'collapsed-row');
+                        hasPastEvents = true;
+                    }
                 });
             });
+
+            if (hasPastEvents) {
+                const controlsDiv = document.createElement('div');
+                controlsDiv.className = 'calendar-controls';
+                const toggleBtn = document.createElement('button');
+                toggleBtn.id = 'toggle-past-events';
+                toggleBtn.className = 'btn btn-outline-secondary btn-sm';
+                toggleBtn.innerHTML = '<i class="fas fa-history"></i> Show Past Events';
+
+                toggleBtn.addEventListener('click', function() {
+                    const pastRows = document.querySelectorAll('.past-event');
+                    const isCollapsed = pastRows[0].classList.contains('collapsed-row');
+
+                    pastRows.forEach(row => {
+                        row.classList.toggle('collapsed-row');
+                    });
+
+                    if (isCollapsed) {
+                        this.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Past Events';
+                        this.classList.remove('btn-outline-secondary');
+                        this.classList.add('btn-secondary');
+                    } else {
+                        this.innerHTML = '<i class="fas fa-history"></i> Show Past Events';
+                        this.classList.remove('btn-secondary');
+                        this.classList.add('btn-outline-secondary');
+                    }
+                });
+
+                controlsDiv.appendChild(toggleBtn);
+                calendarContent.insertBefore(controlsDiv, calendarContent.firstChild);
+            }
         });
     </script>
 {% endblock %}
