@@ -1,0 +1,14 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /login
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /change-password
+Disallow: /members
+Disallow: /calendar
+Disallow: /media/
+Disallow: /static/
+
+# Allow search engines to index public pages
+Allow: /
+Allow: /about

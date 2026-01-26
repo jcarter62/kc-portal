@@ -97,8 +97,14 @@ import admin
 app.include_router(admin.router)
 
 @app.get("/favicon.ico", include_in_schema=False)
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
 async def favicon():
     return FileResponse("static/kofc_r_emblem_rgb_pos.png")
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots():
+    return FileResponse("robots.txt")
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, db: Session = Depends(get_db)):
