@@ -29,9 +29,25 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Middleware for logging with Client IP (Cloudflare) and User
+# Middleware for logging and security
 @app.middleware("http")
 async def log_requests_middleware(request: Request, call_next):
+    # Restrict access to documentation in production to local IPs only
+    if request.url.path.rstrip("/") in ["/docs", "/redoc"] or request.url.path == "/openapi.json":
+        client_ip = request.headers.get("CF-Connecting-IP") or request.client.host
+        
+        # Simple check for local LAN IP ranges
+        is_local = client_ip in ("127.0.0.1", "::1") or \
+                   client_ip.startswith("192.168.") or \
+                   client_ip.startswith("10.") or \
+                   client_ip.startswith("172.")
+        
+        if not is_local and os.getenv("DEBUG", "false").lower() != "true":
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                content={"detail": "Access to documentation is restricted to local network."}
+            )
+
     return await app_logging.log_requests(request, call_next)
 
 # Mount static files if directory exists, otherwise create it
