@@ -27,7 +27,15 @@
                     <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
                     <li class="nav-item"><a class="nav-link" href="/calendar">Calendar</a></li>
                     {% if user %}
-                    <li class="nav-item"><a class="nav-link" href="/members">Members</a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="memberDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Member
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="memberDropdown">
+                            <li><a class="dropdown-item" href="/members">Member List</a></li>
+                            <li><a class="dropdown-item" href="/contact-list">Contact List</a></li>
+                        </ul>
+                    </li>
                     {% if user.is_admin %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

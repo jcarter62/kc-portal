@@ -1,9 +1,9 @@
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, status, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, case
 import models
 from database import engine, get_db
 import os
@@ -21,6 +21,7 @@ import secrets
 from datetime import datetime, timedelta
 import re
 import app_logging
+import pandas as pd
 
 load_dotenv()
 
@@ -47,7 +48,7 @@ async def log_requests_middleware(request: Request, call_next):
                 status_code=status.HTTP_403_FORBIDDEN, 
                 content={"detail": "Access to documentation is restricted to local network."}
             )
-
+            
     return await app_logging.log_requests(request, call_next)
 
 # Mount static files if directory exists, otherwise create it
@@ -66,6 +67,20 @@ if not os.path.exists(MEDIA_FOLDER):
 
 templates = Jinja2Templates(directory="templates")
 templates.env.globals['now'] = datetime.utcnow
+
+# Helper to format phone number
+def format_phone_number(phone: str) -> str:
+    if not phone:
+        return ""
+    # Remove all non-numeric characters
+    digits = re.sub(r"\D", "", phone)
+    if len(digits) == 10:
+        return f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
+    elif len(digits) == 11 and digits[0] == "1":
+        return f"({digits[1:4]}) {digits[4:7]}-{digits[7:]}"
+    return phone # Return original if it doesn't match 10 or 11 digits
+
+templates.env.filters["format_phone"] = format_phone_number
 
 # Helper to get current user from session
 def get_current_user(request: Request, db: Session):
@@ -329,6 +344,90 @@ async def members(request: Request, db: Session = Depends(get_db)):
     # Sort members by last_name and then first_name
     members.sort(key=lambda x: (x.last_name, x.first_name))
     return render_template("members.html", {"request": request, "user": user, "members": members}, db)
+
+@app.get("/contact-list", response_class=HTMLResponse)
+async def contact_list(
+    request: Request, 
+    sort_by: str = "last_name", 
+    positions_first: bool = False,
+    db: Session = Depends(get_db)
+):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    
+    query = db.query(models.User)
+    
+    order_by_clauses = []
+    
+    if positions_first:
+        # Sort by position is not null/empty first
+        order_by_clauses.append(case((or_(models.User.position == None, models.User.position == ""), 1), else_=0))
+        order_by_clauses.append(models.User.position)
+
+    if sort_by == "phone":
+        order_by_clauses.append(models.User.phone_number)
+    elif sort_by == "email":
+        order_by_clauses.append(models.User.email)
+    else: # default last_name
+        order_by_clauses.append(models.User.last_name)
+        order_by_clauses.append(models.User.first_name)
+        
+    members = query.order_by(*order_by_clauses).all()
+    
+    return render_template("contact_list.html", {
+        "request": request, 
+        "user": user, 
+        "members": members,
+        "sort_by": sort_by,
+        "positions_first": positions_first,
+        "current_time": datetime.now()
+    }, db)
+
+@app.get("/contact-list/download")
+async def download_contact_list(
+    sort_by: str = "last_name", 
+    positions_first: bool = False,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.User)
+    order_by_clauses = []
+    
+    if positions_first:
+        order_by_clauses.append(case((or_(models.User.position == None, models.User.position == ""), 1), else_=0))
+        order_by_clauses.append(models.User.position)
+
+    if sort_by == "phone":
+        order_by_clauses.append(models.User.phone_number)
+    elif sort_by == "email":
+        order_by_clauses.append(models.User.email)
+    else:
+        order_by_clauses.append(models.User.last_name)
+        order_by_clauses.append(models.User.first_name)
+        
+    members = query.order_by(*order_by_clauses).all()
+    
+    data = []
+    for m in members:
+        data.append({
+            "First Name": m.first_name,
+            "Last Name": m.last_name,
+            "Email": m.email,
+            "Phone": format_phone_number(m.phone_number),
+            "Position": m.position or ""
+        })
+    
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Contacts')
+    
+    output.seek(0)
+    
+    headers = {
+        'Content-Disposition': 'attachment; filename="contact_list.xlsx"'
+    }
+    return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @app.get("/calendar", response_class=HTMLResponse)
 async def calendar(request: Request, db: Session = Depends(get_db)):
