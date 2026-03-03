@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if product else 'Add' }} Product - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">{{ 'Edit' if product else 'Add New' }} Product</h4>
+            </div>
+            <div class="card-body">
+                <form action="/admin/products/{{ 'edit/' + product.id|string if product else 'new' }}" method="post" enctype="multipart/form-data" onsubmit="updateDeletedImages()">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Product Name</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ product.name if product else '' }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4">{{ product.description if product else '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Base Price (used if no size specific price is set)</label>
+                        <input type="text" class="form-control" id="price" name="price" value="{{ product.price if product else '' }}" placeholder="e.g. $10.00">
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="has_color" name="has_color" value="true" {% if product and product.has_color %}checked{% endif %}>
+                                <label class="form-check-label" for="has_color">Allow Color Choice</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="has_size" name="has_size" value="true" {% if product and product.has_size %}checked{% endif %}>
+                                <label class="form-check-label" for="has_size">Allow Size Choice</label>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="has_text" name="has_text" value="true" {% if product and product.has_text %}checked{% endif %}>
+                                <label class="form-check-label" for="has_text">Allow Custom Text</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="custom_text_section" class="mb-4" {% if not product or not product.has_text %}style="display: none;"{% endif %}>
+                        <div class="mb-3">
+                            <label for="custom_text_help" class="form-label">Custom Text Help Message</label>
+                            <input type="text" class="form-control" id="custom_text_help" name="custom_text_help" value="{{ product.custom_text_help if product and product.custom_text_help else '' }}" placeholder="e.g. For badges, this will include your name and position...">
+                            <div class="form-text">This message will be displayed below the custom text input on the product page.</div>
+                        </div>
+                    </div>
+
+                    <div id="color_section" class="mb-4" {% if not product or not product.has_color %}style="display: none;"{% endif %}>
+                        <label class="form-label">Available Colors</label>
+                        <div id="color_container">
+                            {% if product and product.colors %}
+                                {% for color in product.colors %}
+                                <div class="input-group mb-2 color-row">
+                                    <input type="text" class="form-control" name="available_colors" value="{{ color.color }}">
+                                    <button type="button" class="btn btn-outline-danger remove-row">Remove</button>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="add_color">Add Color</button>
+                    </div>
+
+                    <div id="size_section" class="mb-4" {% if not product or not product.has_size %}style="display: none;"{% endif %}>
+                        <label class="form-label">Available Sizes & Prices</label>
+                        <div id="size_container">
+                            {% if product and product.sizes %}
+                                {% for size in product.sizes %}
+                                <div class="row mb-2 size-row">
+                                    <div class="col">
+                                        <input type="text" class="form-control" name="available_sizes" value="{{ size.size }}" placeholder="Size (e.g. XL)">
+                                    </div>
+                                    <div class="col">
+                                        <input type="text" class="form-control" name="size_prices" value="{{ size.price }}" placeholder="Price (e.g. $12.00)">
+                                    </div>
+                                    <div class="col-auto">
+                                        <button type="button" class="btn btn-outline-danger remove-row">Remove</button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="add_size">Add Size</button>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Product Images</label>
+                        {% if product and product.images %}
+                        <div class="row g-2 mb-3">
+                            {% for img in product.images %}
+                            <div class="col-md-3 text-center position-relative">
+                                <img src="/media/{{ img.image_url }}" class="img-thumbnail" style="height: 100px; width: 100px; object-fit: contain;">
+                                <div class="mt-1 small">Order: {{ img.display_order }}</div>
+                                <div class="form-check mt-1">
+                                    <input class="form-check-input delete-image-check" type="checkbox" value="{{ img.id }}" id="del_{{ img.id }}">
+                                    <label class="form-check-label small" for="del_{{ img.id }}">Delete</label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <input type="hidden" name="deleted_images" id="deleted_images">
+                        {% endif %}
+                        
+                        <div class="mb-3">
+                            <label for="images" class="form-label">Upload New Images</label>
+                            <input type="file" class="form-control" id="images" name="images" multiple accept="image/*">
+                            <div class="form-text">You can select multiple images. The first image uploaded (or existing with order 0) will be the main image.</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="/admin/products" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4" id="submitBtn">Save Product</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function updateDeletedImages() {
+        const deletedChecks = document.querySelectorAll('.delete-image-check:checked');
+        const deletedIds = Array.from(deletedChecks).map(cb => cb.value).join(',');
+        const hiddenInput = document.getElementById('deleted_images');
+        if (hiddenInput) {
+            hiddenInput.value = deletedIds;
+        }
+    }
+
+    document.getElementById('has_color').addEventListener('change', function() {
+        document.getElementById('color_section').style.display = this.checked ? 'block' : 'none';
+    });
+    document.getElementById('has_size').addEventListener('change', function() {
+        document.getElementById('size_section').style.display = this.checked ? 'block' : 'none';
+    });
+    document.getElementById('has_text').addEventListener('change', function() {
+        document.getElementById('custom_text_section').style.display = this.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('add_color').addEventListener('click', function() {
+        const container = document.getElementById('color_container');
+        const div = document.createElement('div');
+        div.className = 'input-group mb-2 color-row';
+        div.innerHTML = `
+            <input type="text" class="form-control" name="available_colors" placeholder="Color Name">
+            <button type="button" class="btn btn-outline-danger remove-row">Remove</button>
+        `;
+        container.appendChild(div);
+    });
+
+    document.getElementById('add_size').addEventListener('click', function() {
+        const container = document.getElementById('size_container');
+        const div = document.createElement('div');
+        div.className = 'row mb-2 size-row';
+        div.innerHTML = `
+            <div class="col">
+                <input type="text" class="form-control" name="available_sizes" placeholder="Size (e.g. XL)">
+            </div>
+            <div class="col">
+                <input type="text" class="form-control" name="size_prices" placeholder="Price (e.g. $12.00)">
+            </div>
+            <div class="col-auto">
+                <button type="button" class="btn btn-outline-danger remove-row">Remove</button>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('remove-row')) {
+            e.target.closest('.color-row, .size-row').remove();
+        }
+    });
+</script>
+{% endblock %}

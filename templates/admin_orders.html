@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Orders - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4">Manage Orders</h2>
+        
+        <div class="table-responsive shadow-sm">
+            <table class="table table-hover align-middle bg-white rounded">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Member</th>
+                        <th>Product</th>
+                        <th>Details</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    {% set item = order.items[0] if order.items else None %}
+                    <tr>
+                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <strong>{{ order.user.first_name }} {{ order.user.last_name }}</strong><br>
+                            <span class="small text-muted">{{ order.user.membership_number }}</span>
+                        </td>
+                        <td>{{ item.product.name if item else 'N/A' }}</td>
+                        <td>
+                            {% if item %}
+                                {% if item.color %}<strong>Color:</strong> {{ item.color }}<br>{% endif %}
+                                {% if item.size %}<strong>Size:</strong> {{ item.size }}<br>{% endif %}
+                                {% if item.text %}<strong>Text:</strong> {{ item.text }}<br>{% endif %}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if order.status == 'Pending' %}bg-warning text-dark{% elif order.status == 'Approved' %}bg-info{% elif order.status == 'Delivered' %}bg-success{% elif order.status == 'Denied' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ order.status }}
+                            </span>
+                            {% if order.completed_at %}
+                            <div class="small text-muted mt-1">Done: {{ order.completed_at.strftime('%Y-%m-%d') }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if order.status == 'Pending' %}
+                            <form action="/admin/orders/{{ order.id }}/approve" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-success me-1">Approve</button>
+                            </form>
+                            <form action="/admin/orders/{{ order.id }}/deny" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-danger me-1">Deny</button>
+                            </form>
+                            {% elif order.status == 'Approved' %}
+                            <form action="/admin/orders/{{ order.id }}/complete" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-primary">Mark Delivered</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No orders found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

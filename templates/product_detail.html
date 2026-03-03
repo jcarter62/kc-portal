@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block title %}{{ product.name }} - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6">
+        {% if product.images %}
+        <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-inner">
+                {% for img in product.images %}
+                <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    <img src="/media/{{ img.image_url }}" class="d-block w-100" alt="{{ product.name }}" style="height: 400px; object-fit: contain; cursor: pointer;" onclick="openImageModal(this.src, '{{ product.name }}')">
+                </div>
+                {% endfor %}
+            </div>
+            {% if product.images | length > 1 %}
+            <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon bg-dark rounded-circle" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon bg-dark rounded-circle" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="bg-light d-flex align-items-center justify-content-center" style="height: 400px;">
+            <i class="fas fa-image fa-5x text-muted"></i>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-md-6">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/order-products">Products</a></li>
+                <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+            </ol>
+        </nav>
+        <h2>{{ product.name }}</h2>
+        <div class="h4 text-primary mb-3" id="product_price">
+            {% if product.price %}{{ product.price }}{% endif %}
+        </div>
+        <div class="mb-4">
+            {{ product.description | replace('\n', '<br>') | safe }}
+        </div>
+
+        <form action="/order-products" method="post" class="card p-4 shadow-sm">
+            <input type="hidden" name="product_id" value="{{ product.id }}">
+            
+            {% if product.has_color %}
+            <div class="mb-3">
+                <label for="color" class="form-label">Color</label>
+                {% if product.colors %}
+                <select class="form-select" id="color" name="color" required>
+                    <option value="" selected disabled>Select color</option>
+                    {% for color in product.colors %}
+                    <option value="{{ color.color }}">{{ color.color }}</option>
+                    {% endfor %}
+                </select>
+                {% else %}
+                <input type="text" class="form-control" id="color" name="color" placeholder="e.g. Red, Blue, White" required>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% if product.has_size %}
+            <div class="mb-3">
+                <label for="size" class="form-label">Size</label>
+                <select class="form-select" id="size" name="size" required onchange="updatePrice(this)">
+                    <option value="" selected disabled>Select size</option>
+                    {% if product.sizes %}
+                        {% for s in product.sizes %}
+                        <option value="{{ s.size }}" data-price="{{ s.price }}">{{ s.size }} {% if s.price %}({{ s.price }}){% endif %}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="S">Small</option>
+                        <option value="M">Medium</option>
+                        <option value="L">Large</option>
+                        <option value="XL">XL</option>
+                        <option value="2XL">2XL</option>
+                        <option value="3XL">3XL</option>
+                    {% endif %}
+                </select>
+            </div>
+            <script>
+                function updatePrice(select) {
+                    const price = select.options[select.selectedIndex].getAttribute('data-price');
+                    const productPriceEl = document.getElementById('product_price');
+                    if (price && price.trim() !== "") {
+                        productPriceEl.innerText = price;
+                    } else {
+                        productPriceEl.innerText = "{{ product.price if product.price else '' }}";
+                    }
+                }
+            </script>
+            {% endif %}
+
+            {% if product.has_text %}
+            <div class="mb-3">
+                <label for="text" class="form-label">Text to include (e.g. Name, Position)</label>
+                <input type="text" class="form-control" id="text" name="text" placeholder="Your Name / Position" required>
+                {% if product.custom_text_help %}
+                <div class="form-text">{{ product.custom_text_help }}</div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-success btn-lg w-100">
+                    <i class="fas fa-shopping-cart me-2"></i> Submit Order Request
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">{{ product.name }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalImage" src="" class="img-fluid" alt="{{ product.name }}">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function openImageModal(imgSrc, productName) {
+        document.getElementById('modalImage').src = imgSrc;
+        document.getElementById('imageModalLabel').innerText = productName;
+        var myModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        myModal.show();
+    }
+</script>
+{% endblock %}

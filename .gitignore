@@ -140,4 +140,4 @@ cython_debug/
 
 # App specific exclusions.
 *.csv
-prompt.txt
+prompt*.txt

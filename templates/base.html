@@ -34,6 +34,9 @@
                         <ul class="dropdown-menu" aria-labelledby="memberDropdown">
                             <li><a class="dropdown-item" href="/members">Member List</a></li>
                             <li><a class="dropdown-item" href="/contact-list">Contact List</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/order-products">Order Products</a></li>
+                            <li><a class="dropdown-item" href="/my-orders">My Orders</a></li>
                         </ul>
                     </li>
                     {% if user.is_admin %}
@@ -45,6 +48,9 @@
                             <li><a class="dropdown-item" href="/admin/users">Manage Users</a></li>
                             <li><a class="dropdown-item" href="/admin/import">Import Users</a></li>
                             <li><a class="dropdown-item" href="/admin/pages">Manage Pages</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/admin/products">Manage Products</a></li>
+                            <li><a class="dropdown-item" href="/admin/orders">Manage Orders</a></li>
                             {% if page and page.id %}
                             <li><a class="dropdown-item" href="/admin/pages/{{ page.id }}/edit">Edit This Page</a></li>
                             {% endif %}

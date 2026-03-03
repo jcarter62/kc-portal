@@ -13,20 +13,18 @@ from typing import Optional
 router = APIRouter(prefix="/admin")
 
 # Helper to get current user from session (duplicated from main.py or should be in a shared utils)
-def get_current_user(request: Request, db: Session):
-    user_id = request.cookies.get("user_id")
-    if user_id:
-        return db.query(models.User).filter(models.User.id == int(user_id)).first()
-    return None
-
-# Helper to get global settings
-def get_settings_dict(db: Session):
-    settings = db.query(models.Setting).all()
-    return {s.key: s.value for s in settings}
 
 # Context processor to inject common variables into templates
 # Note: We need access to the templates object. We'll assume it's passed or imported.
-from main import templates, render_template, MEDIA_FOLDER, get_password_hash
+from utils import (
+    templates, 
+    render_template, 
+    MEDIA_FOLDER, 
+    get_password_hash, 
+    send_email,
+    get_current_user,
+    get_settings_dict
+)
 
 @router.get("/import", response_class=HTMLResponse)
 async def import_page(request: Request, db: Session = Depends(get_db)):
@@ -427,3 +425,316 @@ async def upload_image(request: Request, image: UploadFile = File(...), slug: st
         
     # Return the URL to the image
     return {"url": f"/media/{safe_slug}/{safe_filename}"}
+
+@router.get("/products", response_class=HTMLResponse)
+async def list_products(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    products = db.query(models.Product).all()
+    return render_template("admin_products.html", {"request": request, "user": user, "products": products}, db)
+
+@router.get("/products/new", response_class=HTMLResponse)
+async def new_product(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    return render_template("edit_product.html", {"request": request, "user": user, "product": None}, db)
+
+@router.post("/products/new")
+async def create_product(
+    request: Request,
+    name: str = Form(...),
+    description: str = Form(""),
+    has_color: bool = Form(False),
+    has_size: bool = Form(False),
+    has_text: bool = Form(False),
+    custom_text_help: Optional[str] = Form(None),
+    price: Optional[str] = Form(None),
+    available_colors: list[str] = Form([]),
+    available_sizes: list[str] = Form([]),
+    size_prices: list[str] = Form([]),
+    images: list[UploadFile] = File([]),
+    db: Session = Depends(get_db)
+):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    product = models.Product(
+        name=name,
+        description=description,
+        has_color=has_color,
+        has_size=has_size,
+        has_text=has_text,
+        custom_text_help=custom_text_help,
+        price=price
+    )
+    db.add(product)
+    db.flush()
+    
+    if has_color:
+        for color_name in available_colors:
+            if color_name.strip():
+                db_color = models.ProductColor(product_id=product.id, color=color_name.strip())
+                db.add(db_color)
+    
+    if has_size:
+        for i, size_name in enumerate(available_sizes):
+            if size_name.strip():
+                price_val = size_prices[i] if i < len(size_prices) else ""
+                db_size = models.ProductSize(product_id=product.id, size=size_name.strip(), price=price_val)
+                db.add(db_size)
+    
+    db.commit()
+    db.refresh(product)
+    
+    # Handle image uploads
+    if images and images[0].filename:
+        settings_dict = get_settings_dict(db)
+        img_folder_name = settings_dict.get("product_images_folder", "product_images")
+        
+        safe_name = "".join(c for c in product.name if c.isalnum() or c in ('-', '_')).strip().replace(" ", "_")
+        if not safe_name: safe_name = f"product_{product.id}"
+        
+        product_folder = os.path.join(MEDIA_FOLDER, img_folder_name, safe_name)
+        if not os.path.exists(product_folder):
+            os.makedirs(product_folder)
+            
+        for i, image in enumerate(images):
+            if not image.filename: continue
+            
+            file_extension = os.path.splitext(image.filename)[1]
+            safe_filename = "".join(c for c in image.filename if c.isalnum() or c in ('.', '-', '_')).strip().replace(" ", "_")
+            file_path = os.path.join(product_folder, safe_filename)
+            
+            if os.path.exists(file_path):
+                file_path = os.path.join(product_folder, f"{i}_{safe_filename}")
+
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(image.file, buffer)
+            
+            # Save to DB
+            rel_path = os.path.relpath(file_path, MEDIA_FOLDER)
+            db_img = models.ProductImage(
+                product_id=product.id,
+                image_url=rel_path,
+                display_order=i
+            )
+            db.add(db_img)
+        db.commit()
+        
+    return RedirectResponse(url="/admin/products", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.get("/products/edit/{product_id}", response_class=HTMLResponse)
+async def edit_product_page(request: Request, product_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    return render_template("edit_product.html", {"request": request, "user": user, "product": product}, db)
+
+@router.post("/products/edit/{product_id}")
+async def update_product(
+    request: Request,
+    product_id: int,
+    name: str = Form(...),
+    description: str = Form(""),
+    has_color: bool = Form(False),
+    has_size: bool = Form(False),
+    has_text: bool = Form(False),
+    custom_text_help: Optional[str] = Form(None),
+    price: Optional[str] = Form(None),
+    available_colors: list[str] = Form([]),
+    available_sizes: list[str] = Form([]),
+    size_prices: list[str] = Form([]),
+    images: list[UploadFile] = File([]),
+    deleted_images: str = Form(""),
+    db: Session = Depends(get_db)
+):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    product.name = name
+    product.description = description
+    product.has_color = has_color
+    product.has_size = has_size
+    product.has_text = has_text
+    product.custom_text_help = custom_text_help
+    product.price = price
+
+    # Update colors
+    db.query(models.ProductColor).filter(models.ProductColor.product_id == product_id).delete()
+    if has_color:
+        for color_name in available_colors:
+            if color_name.strip():
+                db_color = models.ProductColor(product_id=product.id, color=color_name.strip())
+                db.add(db_color)
+    
+    # Update sizes
+    db.query(models.ProductSize).filter(models.ProductSize.product_id == product_id).delete()
+    if has_size:
+        for i, size_name in enumerate(available_sizes):
+            if size_name.strip():
+                price_val = size_prices[i] if i < len(size_prices) else ""
+                db_size = models.ProductSize(product_id=product.id, size=size_name.strip(), price=price_val)
+                db.add(db_size)
+    
+    # Handle deleted images
+    if deleted_images:
+        image_ids = [int(i) for i in deleted_images.split(",") if i.strip()]
+        for img_id in image_ids:
+            img = db.query(models.ProductImage).filter(models.ProductImage.id == img_id, models.ProductImage.product_id == product_id).first()
+            if img:
+                # Also delete from filesystem
+                full_path = os.path.join(MEDIA_FOLDER, img.image_url)
+                if os.path.exists(full_path) and os.path.isfile(full_path):
+                    try:
+                        os.remove(full_path)
+                    except Exception as e:
+                        print(f"Error deleting file {full_path}: {e}")
+                db.delete(img)
+    
+    # Handle image uploads if any
+    if images and images[0].filename:
+        settings_dict = get_settings_dict(db)
+        img_folder_name = settings_dict.get("product_images_folder", "product_images")
+        
+        safe_name = "".join(c for c in product.name if c.isalnum() or c in ('-', '_')).strip().replace(" ", "_")
+        if not safe_name: safe_name = f"product_{product.id}"
+        
+        product_folder = os.path.join(MEDIA_FOLDER, img_folder_name, safe_name)
+        if not os.path.exists(product_folder):
+            os.makedirs(product_folder)
+            
+        # Get current max order
+        current_images = db.query(models.ProductImage).filter(models.ProductImage.product_id == product.id).all()
+        max_order = max([img.display_order for img in current_images]) if current_images else -1
+        
+        for i, image in enumerate(images):
+            if not image.filename: continue
+            
+            file_extension = os.path.splitext(image.filename)[1]
+            safe_filename = "".join(c for c in image.filename if c.isalnum() or c in ('.', '-', '_')).strip().replace(" ", "_")
+            file_path = os.path.join(product_folder, safe_filename)
+            
+            if os.path.exists(file_path):
+                file_path = os.path.join(product_folder, f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe_filename}")
+
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(image.file, buffer)
+            
+            rel_path = os.path.relpath(file_path, MEDIA_FOLDER)
+            db_img = models.ProductImage(
+                product_id=product.id,
+                image_url=rel_path,
+                display_order=max_order + i + 1
+            )
+            db.add(db_img)
+            
+    db.commit()
+    return RedirectResponse(url="/admin/products", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/products/delete/{product_id}")
+async def delete_product(request: Request, product_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if product:
+        # Get info for folder deletion before DB delete
+        settings_dict = get_settings_dict(db)
+        img_folder_name = settings_dict.get("product_images_folder", "product_images")
+        safe_name = "".join(c for c in product.name if c.isalnum() or c in ('-', '_')).strip().replace(" ", "_")
+        
+        db.delete(product)
+        db.commit()
+        
+        # Delete folder
+        if safe_name:
+            product_folder = os.path.join(MEDIA_FOLDER, img_folder_name, safe_name)
+            if os.path.exists(product_folder) and os.path.isdir(product_folder):
+                try:
+                    shutil.rmtree(product_folder)
+                except Exception as e:
+                    print(f"Error deleting folder {product_folder}: {e}")
+        
+    return RedirectResponse(url="/admin/products", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.get("/orders", response_class=HTMLResponse)
+async def list_orders(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    orders = db.query(models.Order).order_by(models.Order.created_at.desc()).all()
+    return render_template("admin_orders.html", {"request": request, "user": user, "orders": orders}, db)
+
+@router.post("/orders/{order_id}/approve")
+async def approve_order(request: Request, order_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if order:
+        order.status = "Approved"
+        db.commit()
+        
+        # Email member
+        if order.user.email:
+            item = order.items[0] if order.items else None
+            product_name = item.product.name if item else "your ordered product"
+            details = f"Product: {product_name}\n"
+            if item:
+                if item.color: details += f"Color: {item.color}\n"
+                if item.size: details += f"Size: {item.size}\n"
+                if item.text: details += f"Text: {item.text}\n"
+            
+            send_email(order.user.email, f"Order Approved - {product_name}", f"Your order for {product_name} has been approved.\n\nDetails:\n{details}")
+            
+    return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/orders/{order_id}/deny")
+async def deny_order(request: Request, order_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if order:
+        order.status = "Denied"
+        db.commit()
+        
+        # Email member
+        if order.user.email:
+            item = order.items[0] if order.items else None
+            product_name = item.product.name if item else "your ordered product"
+            send_email(order.user.email, f"Order Denied - {product_name}", f"Your order for {product_name} has been denied.")
+            
+    return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/orders/{order_id}/complete")
+async def complete_order(request: Request, order_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if order:
+        order.status = "Delivered"
+        order.completed_at = datetime.utcnow()
+        db.commit()
+        
+    return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)

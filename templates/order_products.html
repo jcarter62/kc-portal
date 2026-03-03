@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Order Products - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2>Order Products</h2>
+        <p>Available products for members.</p>
+        
+        {% if message %}
+        <div class="alert alert-success">{{ message }}</div>
+        {% endif %}
+
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for product in products %}
+            <div class="col">
+                <div class="card h-100">
+                    {% if product.images %}
+                    <img src="/media/{{ product.images[0].image_url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: contain; padding: 10px; cursor: pointer;" onclick="openImageModal(this.src, '{{ product.name }}')">
+                    {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <i class="fas fa-image fa-3x text-muted"></i>
+                    </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+                        {% if product.price %}
+                        <div class="text-primary fw-bold mb-2">{{ product.price }}</div>
+                        {% endif %}
+                        <p class="card-text text-truncate">{{ product.description }}</p>
+                    </div>
+                    <div class="card-footer bg-white border-top-0">
+                        <a href="/product/{{ product.id }}" class="btn btn-primary w-100">Product Details</a>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-12">
+                <div class="alert alert-info">No products available at this time.</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalLabel">Product Image</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalImage" src="" class="img-fluid" alt="Product Image">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+    function openImageModal(imgSrc, productName) {
+        document.getElementById('modalImage').src = imgSrc;
+        document.getElementById('imageModalLabel').innerText = productName;
+        var myModal = new bootstrap.Modal(document.getElementById('imageModal'));
+        myModal.show();
+    }
+</script>
+{% endblock %}

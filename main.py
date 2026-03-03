@@ -22,13 +22,23 @@ from datetime import datetime, timedelta
 import re
 import app_logging
 import pandas as pd
+from utils import (
+    MEDIA_FOLDER, 
+    templates, 
+    get_current_user, 
+    get_settings_dict, 
+    verify_password, 
+    get_password_hash, 
+    send_email, 
+    render_template,
+    format_phone_number
+)
 
 load_dotenv()
 
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Middleware for logging and security
 @app.middleware("http")
@@ -56,51 +66,6 @@ if not os.path.exists("static"):
     os.makedirs("static")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Media configuration
-MEDIA_FOLDER = os.getenv("MEDIA_FOLDER")
-if not MEDIA_FOLDER:
-    # Fallback if not set in .env
-    MEDIA_FOLDER = os.path.join(os.getcwd(), "media")
-
-if not os.path.exists(MEDIA_FOLDER):
-    os.makedirs(MEDIA_FOLDER)
-
-templates = Jinja2Templates(directory="templates")
-templates.env.globals['now'] = datetime.utcnow
-
-# Helper to format phone number
-def format_phone_number(phone: str) -> str:
-    if not phone:
-        return ""
-    # Remove all non-numeric characters
-    digits = re.sub(r"\D", "", phone)
-    if len(digits) == 10:
-        return f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
-    elif len(digits) == 11 and digits[0] == "1":
-        return f"({digits[1:4]}) {digits[4:7]}-{digits[7:]}"
-    return phone # Return original if it doesn't match 10 or 11 digits
-
-templates.env.filters["format_phone"] = format_phone_number
-
-# Helper to get current user from session
-def get_current_user(request: Request, db: Session):
-    user_id = request.cookies.get("user_id")
-    if user_id:
-        return db.query(models.User).filter(models.User.id == int(user_id)).first()
-    return None
-
-# Helper to get global settings
-def get_settings_dict(db: Session):
-    settings = db.query(models.Setting).all()
-    return {s.key: s.value for s in settings}
-
-# Helper to verify password
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-# Helper to get password hash
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 # Helper to validate password strength
 def is_password_strong(password: str) -> bool:
@@ -112,16 +77,6 @@ def is_password_strong(password: str) -> bool:
         return False
     return True
 
-# Context processor to inject common variables into templates
-def render_template(template_name: str, context: dict, db: Session):
-    # Add settings to context
-    try:
-        app_settings = get_settings_dict(db)
-        context.update(app_settings)
-    except Exception:
-        # If getting settings fails (e.g. due to rollback), just proceed without them
-        pass
-    return templates.TemplateResponse(template_name, context)
 
 # Import and include admin router
 import admin
@@ -436,12 +391,93 @@ async def calendar(request: Request, db: Session = Depends(get_db)):
     page = db.query(models.Page).filter(models.Page.slug == "calendar").first()
     return render_template("calendar.html", {"request": request, "user": user, "page": page}, db)
 
+@app.get("/order-products", response_class=HTMLResponse)
+async def order_products_page(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    
+    products = db.query(models.Product).all()
+    return render_template("order_products.html", {"request": request, "user": user, "products": products}, db)
+
+@app.get("/product/{product_id}", response_class=HTMLResponse)
+async def product_detail(request: Request, product_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+        
+    return render_template("product_detail.html", {"request": request, "user": user, "product": product}, db)
+
+@app.post("/order-products")
+async def place_order(
+    request: Request,
+    product_id: int = Form(...),
+    color: Optional[str] = Form(None),
+    size: Optional[str] = Form(None),
+    text: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    order = models.Order(user_id=user.id)
+    db.add(order)
+    db.flush()
+    
+    order_item = models.OrderItem(
+        order_id=order.id,
+        product_id=product_id,
+        color=color,
+        size=size,
+        text=text
+    )
+    db.add(order_item)
+    db.commit()
+    
+    # Send email notifications
+    settings_dict = get_settings_dict(db)
+    admin_email = settings_dict.get("order_notification_email")
+    
+    subject = f"New Product Order - {user.first_name} {user.last_name}"
+    content = f"New order for {product.name} has been placed by {user.first_name} {user.last_name} ({user.membership_number}).\n\n"
+    if color: content += f"Color: {color}\n"
+    if size: content += f"Size: {size}\n"
+    if text: content += f"Text: {text}\n"
+    
+    # Email to admin
+    if admin_email:
+        send_email(admin_email, subject, content)
+    
+    # Email to member
+    if user.email:
+        send_email(user.email, f"Order Confirmation - {product.name}", f"Thank you for your order of {product.name}. Your order is currently pending approval.\n\nDetails:\n{content}")
+        
+    return render_template("order_products.html", {"request": request, "user": user, "message": "Your order has been placed successfully and is pending approval.", "products": db.query(models.Product).all()}, db)
+
+@app.get("/my-orders", response_class=HTMLResponse)
+async def my_orders(request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    
+    orders = db.query(models.Order).filter(models.Order.user_id == user.id).order_by(models.Order.created_at.desc()).all()
+    return render_template("my_orders.html", {"request": request, "user": user, "orders": orders}, db)
+
 @app.get("/media/{file_path:path}")
 async def get_media(file_path: str):
     # Prevent directory traversal
     safe_path = os.path.normpath(os.path.join(MEDIA_FOLDER, file_path))
-    if not safe_path.startswith(os.path.abspath(MEDIA_FOLDER)):
-        raise HTTPException(status_code=404, detail="File find not found")
+    if not os.path.abspath(safe_path).startswith(os.path.abspath(MEDIA_FOLDER)):
+        raise HTTPException(status_code=404, detail="File not found")
         
     if os.path.exists(safe_path) and os.path.isfile(safe_path):
         return FileResponse(safe_path)
@@ -481,6 +517,8 @@ async def startup_event():
         {"key": "council_number", "value": "1234"},
         {"key": "app_title", "value": "KC Portal"},
         {"key": "email_text", "value": "Welcome to our portal"},
+        {"key": "order_notification_email", "value": "admin@example.com"},
+        {"key": "product_images_folder", "value": "product_images"},
     ]
     for setting_data in settings:
         if not db.query(models.Setting).filter(models.Setting.key == setting_data["key"]).first():
