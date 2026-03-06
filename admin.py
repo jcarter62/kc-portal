@@ -693,10 +693,11 @@ async def approve_order(request: Request, order_id: int, db: Session = Depends(g
         db.commit()
         
         # Email member
-        if order.user.email:
+        if order.user and order.user.email:
             items_text = ""
             for item in order.items:
-                items_text += f"- {item.product.name} (Qty: {item.quantity})"
+                p_name = item.product.name if item.product else "Deleted Product"
+                items_text += f"- {p_name} (Qty: {item.quantity})"
                 if item.color: items_text += f", Color: {item.color}"
                 if item.size: items_text += f", Size: {item.size}"
                 if item.text: items_text += f", Text: {item.text}"
@@ -719,10 +720,11 @@ async def deny_order(request: Request, order_id: int, db: Session = Depends(get_
         db.commit()
         
         # Email member
-        if order.user.email:
+        if order.user and order.user.email:
             items_text = ""
             for item in order.items:
-                items_text += f"- {item.product.name} (Qty: {item.quantity})"
+                p_name = item.product.name if item.product else "Deleted Product"
+                items_text += f"- {p_name} (Qty: {item.quantity})"
                 if item.color: items_text += f", Color: {item.color}"
                 if item.size: items_text += f", Size: {item.size}"
                 if item.text: items_text += f", Text: {item.text}"

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, case
 from starlette.middleware.sessions import SessionMiddleware
 import models
-from database import engine, get_db
+from database import engine, get_db, upgrade_db
 import os
 from dotenv import load_dotenv
 import csv
@@ -38,6 +38,7 @@ from utils import (
 load_dotenv()
 
 models.Base.metadata.create_all(bind=engine)
+upgrade_db()
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY") or os.getenv("SECRET_KEY", secrets.token_hex(32)))

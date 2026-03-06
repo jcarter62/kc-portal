@@ -29,7 +29,11 @@
                         <td>
                             {% for item in order.items %}
                             <div class="mb-2">
+                                {% if item.product %}
                                 <strong>{{ item.product.name }}</strong> (Qty: {{ item.quantity }})<br>
+                                {% else %}
+                                <strong class="text-danger small">Product Deleted</strong> (Qty: {{ item.quantity }})<br>
+                                {% endif %}
                                 <span class="small text-muted">
                                     {% if item.color %}Color: {{ item.color }}{% endif %}
                                     {% if item.size %} Size: {{ item.size }}{% endif %}
