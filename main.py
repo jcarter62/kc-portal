@@ -40,7 +40,7 @@ load_dotenv()
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", secrets.token_hex(32)))
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY") or os.getenv("SECRET_KEY", secrets.token_hex(32)))
 
 # Middleware for logging and security
 @app.middleware("http")

@@ -122,7 +122,11 @@
                             if (response.ok) {
                                 window.location.href = '/store/order-products?message=Your+order+has+been+paid+and+submitted+successfully.';
                             } else {
-                                alert('There was an error saving your order. Please contact the administrator.');
+                                response.json().then(function(data) {
+                                    alert('There was an error saving your order: ' + (data.error || 'Unknown error') + '. Please contact the administrator.');
+                                }).catch(function() {
+                                    alert('There was an error saving your order. Please contact the administrator.');
+                                });
                             }
                         });
                     });
