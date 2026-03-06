@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, case
+from starlette.middleware.sessions import SessionMiddleware
 import models
 from database import engine, get_db
 import os
@@ -39,6 +40,7 @@ load_dotenv()
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET_KEY", secrets.token_hex(32)))
 
 # Middleware for logging and security
 @app.middleware("http")
@@ -78,9 +80,11 @@ def is_password_strong(password: str) -> bool:
     return True
 
 
-# Import and include admin router
+# Import and include admin and store routers
 import admin
+import store
 app.include_router(admin.router)
+app.include_router(store.router)
 
 @app.get("/favicon.ico", include_in_schema=False)
 @app.get("/apple-touch-icon.png", include_in_schema=False)
@@ -391,87 +395,6 @@ async def calendar(request: Request, db: Session = Depends(get_db)):
     page = db.query(models.Page).filter(models.Page.slug == "calendar").first()
     return render_template("calendar.html", {"request": request, "user": user, "page": page}, db)
 
-@app.get("/order-products", response_class=HTMLResponse)
-async def order_products_page(request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
-    
-    products = db.query(models.Product).all()
-    return render_template("order_products.html", {"request": request, "user": user, "products": products}, db)
-
-@app.get("/product/{product_id}", response_class=HTMLResponse)
-async def product_detail(request: Request, product_id: int, db: Session = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
-    
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-        
-    return render_template("product_detail.html", {"request": request, "user": user, "product": product}, db)
-
-@app.post("/order-products")
-async def place_order(
-    request: Request,
-    product_id: int = Form(...),
-    color: Optional[str] = Form(None),
-    size: Optional[str] = Form(None),
-    text: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
-):
-    user = get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
-    
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
-    
-    order = models.Order(user_id=user.id)
-    db.add(order)
-    db.flush()
-    
-    order_item = models.OrderItem(
-        order_id=order.id,
-        product_id=product_id,
-        color=color,
-        size=size,
-        text=text
-    )
-    db.add(order_item)
-    db.commit()
-    
-    # Send email notifications
-    settings_dict = get_settings_dict(db)
-    admin_email = settings_dict.get("order_notification_email")
-    
-    subject = f"New Product Order - {user.first_name} {user.last_name}"
-    content = f"New order for {product.name} has been placed by {user.first_name} {user.last_name} ({user.membership_number}).\n\n"
-    if color: content += f"Color: {color}\n"
-    if size: content += f"Size: {size}\n"
-    if text: content += f"Text: {text}\n"
-    
-    # Email to admin
-    if admin_email:
-        send_email(admin_email, subject, content)
-    
-    # Email to member
-    if user.email:
-        send_email(user.email, f"Order Confirmation - {product.name}", f"Thank you for your order of {product.name}. Your order is currently pending approval.\n\nDetails:\n{content}")
-        
-    return render_template("order_products.html", {"request": request, "user": user, "message": "Your order has been placed successfully and is pending approval.", "products": db.query(models.Product).all()}, db)
-
-@app.get("/my-orders", response_class=HTMLResponse)
-async def my_orders(request: Request, db: Session = Depends(get_db)):
-    user = get_current_user(request, db)
-    if not user:
-        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
-    
-    orders = db.query(models.Order).filter(models.Order.user_id == user.id).order_by(models.Order.created_at.desc()).all()
-    return render_template("my_orders.html", {"request": request, "user": user, "orders": orders}, db)
-
 @app.get("/media/{file_path:path}")
 async def get_media(file_path: str):
     # Prevent directory traversal
@@ -519,6 +442,10 @@ async def startup_event():
         {"key": "email_text", "value": "Welcome to our portal"},
         {"key": "order_notification_email", "value": "admin@example.com"},
         {"key": "product_images_folder", "value": "product_images"},
+        {"key": "paypal_client_id", "value": ""},
+        {"key": "paypal_enabled", "value": "false"},
+        {"key": "paypal_mode", "value": "sandbox"},
+        {"key": "manual_payment_instructions", "value": "Please pay via Check or Cash to the financial secretary."}
     ]
     for setting_data in settings:
         if not db.query(models.Setting).filter(models.Setting.key == setting_data["key"]).first():

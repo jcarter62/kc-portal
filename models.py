@@ -105,6 +105,9 @@ class Order(Base):
     status = Column(String, default="Pending") # Pending, Approved, Denied, Delivered, Completed
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
+    total_price = Column(String, nullable=True)
+    payment_id = Column(String, nullable=True)
+    payment_status = Column(String, default="Unpaid") # Unpaid, Paid, Pending, Refunded
 
     user = relationship("User")
     items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
@@ -118,6 +121,8 @@ class OrderItem(Base):
     color = Column(String, nullable=True)
     size = Column(String, nullable=True)
     text = Column(String, nullable=True)
+    quantity = Column(Integer, default=1)
+    price = Column(String, nullable=True) # Price per item at order time
 
     order = relationship("Order", back_populates="items")
     product = relationship("Product")

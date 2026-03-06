@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Cart - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <h2 class="mb-4"><i class="fas fa-shopping-cart me-2"></i>Your Shopping Cart</h2>
+        
+        {% if cart %}
+        <div class="card shadow-sm mb-4">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Product</th>
+                                <th>Options</th>
+                                <th class="text-center">Price</th>
+                                <th class="text-center">Quantity</th>
+                                <th class="text-center">Subtotal</th>
+                                <th class="text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in cart %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ item.product_name }}</div>
+                                </td>
+                                <td>
+                                    {% if item.color %}<span class="badge bg-info text-dark me-1">Color: {{ item.color }}</span>{% endif %}
+                                    {% if item.size %}<span class="badge bg-secondary me-1">Size: {{ item.size }}</span>{% endif %}
+                                    {% if item.text %}<div class="small text-muted mt-1">Text: {{ item.text }}</div>{% endif %}
+                                </td>
+                                <td class="text-center">{{ item.price }}</td>
+                                <td class="text-center">{{ item.quantity }}</td>
+                                <td class="text-center fw-bold">{{ item.subtotal }}</td>
+                                <td class="text-center">
+                                    <a href="/store/cart/remove/{{ loop.index0 }}" class="btn btn-outline-danger btn-sm" title="Remove Item">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr class="fs-5">
+                                <td colspan="4" class="text-end fw-bold">Total Amount Due:</td>
+                                <td class="text-center fw-bold text-primary">{{ total }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-5">
+            <a href="/store/order-products" class="btn btn-outline-primary px-4">
+                <i class="fas fa-arrow-left me-2"></i>Continue Shopping
+            </a>
+            
+            <div class="d-flex flex-column gap-3">
+                {% if manual_payment_instructions %}
+                <div class="card bg-light border-0 mb-2">
+                    <div class="card-body p-3">
+                        <h6 class="card-title text-muted mb-2"><i class="fas fa-info-circle me-1"></i> Payment Instructions</h6>
+                        <p class="card-text small mb-0">{{ manual_payment_instructions }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <form action="/store/checkout" method="post" onsubmit="return confirm('Submit this order for approval?');">
+                    <button type="submit" class="btn btn-success btn-lg w-100 px-5 shadow-sm mb-2">
+                        <i class="fas fa-check-circle me-2"></i>Submit Order Request
+                    </button>
+                    <div class="form-text text-center mt-1">Order will be marked as "Pending" until payment is confirmed</div>
+                </form>
+
+                {% if paypal_enabled == 'true' and paypal_client_id %}
+                <div class="text-center fw-bold text-muted my-1">— OR USE PAYPAL CHECKOUT —</div>
+                {% if paypal_mode == 'sandbox' %}
+                <div class="alert alert-warning py-1 px-2 mb-2 text-center small">
+                    <i class="fas fa-flask me-1"></i>PayPal SANDBOX Mode active
+                </div>
+                {% endif %}
+                <div id="paypal-button-container"></div>
+                <div class="form-text text-center mt-1">Pay securely with PayPal Business Checkout</div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if paypal_enabled == 'true' and paypal_client_id %}
+        <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD"></script>
+        <script>
+            paypal.Buttons({
+                createOrder: function(data, actions) {
+                    return actions.order.create({
+                        purchase_units: [{
+                            amount: {
+                                value: '{{ total_val }}'
+                            },
+                            description: 'KC Portal Order'
+                        }]
+                    });
+                },
+                onApprove: function(data, actions) {
+                    return actions.order.capture().then(function(details) {
+                        // Send order details to our server
+                        return fetch('/store/complete-paypal-order', {
+                            method: 'post',
+                            headers: {
+                                'content-type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                orderID: data.orderID,
+                                status: details.status,
+                                details: details
+                            })
+                        }).then(function(response) {
+                            if (response.ok) {
+                                window.location.href = '/store/order-products?message=Your+order+has+been+paid+and+submitted+successfully.';
+                            } else {
+                                alert('There was an error saving your order. Please contact the administrator.');
+                            }
+                        });
+                    });
+                }
+            }).render('#paypal-button-container');
+        </script>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5 card shadow-sm">
+            <div class="card-body">
+                <i class="fas fa-shopping-basket fa-4x mb-3 text-muted"></i>
+                <h3>Your cart is empty</h3>
+                <p class="text-muted mb-4">Browse our products and add them to your cart to start ordering.</p>
+                <a href="/store/order-products" class="btn btn-primary px-4">Browse Products</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

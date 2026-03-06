@@ -7,7 +7,7 @@
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>My Order History</h2>
-            <a href="/order-products" class="btn btn-outline-primary">Order More Products</a>
+            <a href="/store/order-products" class="btn btn-outline-primary">Order More Products</a>
         </div>
         
         <div class="table-responsive shadow-sm">
@@ -15,35 +15,46 @@
                 <thead class="table-light">
                     <tr>
                         <th>Date</th>
-                        <th>Product</th>
-                        <th>Details</th>
+                        <th>Items</th>
+                        <th class="text-end">Total Price</th>
                         <th>Status</th>
+                        <th>Payment</th>
                         <th>Completion Date</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for order in orders %}
-                    {% set item = order.items[0] if order.items else None %}
                     <tr>
                         <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                        <td>{{ item.product.name if item else 'N/A' }}</td>
                         <td>
-                            {% if item %}
-                                {% if item.color %}<strong>Color:</strong> {{ item.color }}<br>{% endif %}
-                                {% if item.size %}<strong>Size:</strong> {{ item.size }}<br>{% endif %}
-                                {% if item.text %}<strong>Text:</strong> {{ item.text }}<br>{% endif %}
-                            {% endif %}
+                            {% for item in order.items %}
+                            <div class="mb-2">
+                                <strong>{{ item.product.name }}</strong> (Qty: {{ item.quantity }})<br>
+                                <span class="small text-muted">
+                                    {% if item.color %}Color: {{ item.color }}{% endif %}
+                                    {% if item.size %} Size: {{ item.size }}{% endif %}
+                                    {% if item.text %} Text: {{ item.text }}{% endif %}
+                                    Price: {{ item.price }}
+                                </span>
+                            </div>
+                            {% endfor %}
                         </td>
+                        <td class="text-end fw-bold">{{ order.total_price }}</td>
                         <td>
                             <span class="badge {% if order.status == 'Pending' %}bg-warning text-dark{% elif order.status == 'Approved' %}bg-info{% elif order.status == 'Delivered' %}bg-success{% elif order.status == 'Denied' %}bg-danger{% else %}bg-secondary{% endif %}">
                                 {{ order.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge {% if order.payment_status == 'Paid' %}bg-success{% elif order.payment_status == 'Pending' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ order.payment_status }}
                             </span>
                         </td>
                         <td>{{ order.completed_at.strftime('%Y-%m-%d %H:%M') if order.completed_at else '---' }}</td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">You haven't placed any orders yet.</td>
+                        <td colspan="6" class="text-center py-4 text-muted">You haven't placed any orders yet.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

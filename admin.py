@@ -694,15 +694,16 @@ async def approve_order(request: Request, order_id: int, db: Session = Depends(g
         
         # Email member
         if order.user.email:
-            item = order.items[0] if order.items else None
-            product_name = item.product.name if item else "your ordered product"
-            details = f"Product: {product_name}\n"
-            if item:
-                if item.color: details += f"Color: {item.color}\n"
-                if item.size: details += f"Size: {item.size}\n"
-                if item.text: details += f"Text: {item.text}\n"
+            items_text = ""
+            for item in order.items:
+                items_text += f"- {item.product.name} (Qty: {item.quantity})"
+                if item.color: items_text += f", Color: {item.color}"
+                if item.size: items_text += f", Size: {item.size}"
+                if item.text: items_text += f", Text: {item.text}"
+                items_text += f"\n"
             
-            send_email(order.user.email, f"Order Approved - {product_name}", f"Your order for {product_name} has been approved.\n\nDetails:\n{details}")
+            content = f"Your order has been approved.\n\nItems:\n{items_text}\nTotal Amount: {order.total_price or 'N/A'}\n"
+            send_email(order.user.email, "Order Approved", content)
             
     return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -719,9 +720,16 @@ async def deny_order(request: Request, order_id: int, db: Session = Depends(get_
         
         # Email member
         if order.user.email:
-            item = order.items[0] if order.items else None
-            product_name = item.product.name if item else "your ordered product"
-            send_email(order.user.email, f"Order Denied - {product_name}", f"Your order for {product_name} has been denied.")
+            items_text = ""
+            for item in order.items:
+                items_text += f"- {item.product.name} (Qty: {item.quantity})"
+                if item.color: items_text += f", Color: {item.color}"
+                if item.size: items_text += f", Size: {item.size}"
+                if item.text: items_text += f", Text: {item.text}"
+                items_text += f"\n"
+            
+            content = f"Your order for the following items has been denied:\n\n{items_text}"
+            send_email(order.user.email, "Order Denied", content)
             
     return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -735,6 +743,32 @@ async def complete_order(request: Request, order_id: int, db: Session = Depends(
     if order:
         order.status = "Delivered"
         order.completed_at = datetime.utcnow()
+        db.commit()
+        
+    return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/orders/{order_id}/mark-paid")
+async def mark_order_paid(request: Request, order_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if order:
+        order.payment_status = "Paid"
+        db.commit()
+        
+    return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)
+
+@router.post("/orders/{order_id}/delete")
+async def delete_order(request: Request, order_id: int, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user or not user.is_admin:
+        return RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    
+    order = db.query(models.Order).filter(models.Order.id == order_id).first()
+    if order:
+        db.delete(order)
         db.commit()
         
     return RedirectResponse(url="/admin/orders", status_code=status.HTTP_303_SEE_OTHER)

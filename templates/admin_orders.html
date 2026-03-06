@@ -13,29 +13,35 @@
                     <tr>
                         <th>Date</th>
                         <th>Member</th>
-                        <th>Product</th>
-                        <th>Details</th>
+                        <th>Items</th>
+                        <th class="text-end">Total Price</th>
                         <th>Status</th>
+                        <th>Payment</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for order in orders %}
-                    {% set item = order.items[0] if order.items else None %}
                     <tr>
                         <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
                             <strong>{{ order.user.first_name }} {{ order.user.last_name }}</strong><br>
                             <span class="small text-muted">{{ order.user.membership_number }}</span>
                         </td>
-                        <td>{{ item.product.name if item else 'N/A' }}</td>
                         <td>
-                            {% if item %}
-                                {% if item.color %}<strong>Color:</strong> {{ item.color }}<br>{% endif %}
-                                {% if item.size %}<strong>Size:</strong> {{ item.size }}<br>{% endif %}
-                                {% if item.text %}<strong>Text:</strong> {{ item.text }}<br>{% endif %}
-                            {% endif %}
+                            {% for item in order.items %}
+                            <div class="mb-2">
+                                <strong>{{ item.product.name }}</strong> (Qty: {{ item.quantity }})<br>
+                                <span class="small text-muted">
+                                    {% if item.color %}Color: {{ item.color }}{% endif %}
+                                    {% if item.size %} Size: {{ item.size }}{% endif %}
+                                    {% if item.text %} Text: {{ item.text }}{% endif %}
+                                    Price: {{ item.price }}
+                                </span>
+                            </div>
+                            {% endfor %}
                         </td>
+                        <td class="text-end fw-bold">{{ order.total_price }}</td>
                         <td>
                             <span class="badge {% if order.status == 'Pending' %}bg-warning text-dark{% elif order.status == 'Approved' %}bg-info{% elif order.status == 'Delivered' %}bg-success{% elif order.status == 'Denied' %}bg-danger{% else %}bg-secondary{% endif %}">
                                 {{ order.status }}
@@ -44,7 +50,23 @@
                             <div class="small text-muted mt-1">Done: {{ order.completed_at.strftime('%Y-%m-%d') }}</div>
                             {% endif %}
                         </td>
+                        <td>
+                            <span class="badge {% if order.payment_status == 'Paid' %}bg-success{% elif order.payment_status == 'Pending' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ order.payment_status }}
+                            </span>
+                            {% if order.payment_id %}
+                            <div class="small text-muted mt-1" title="{{ order.payment_id }}">ID: {{ order.payment_id[:8] }}...</div>
+                            {% endif %}
+                        </td>
                         <td class="text-end">
+                            {% if order.payment_status != 'Paid' %}
+                            <form action="/admin/orders/{{ order.id }}/mark-paid" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-success me-1" title="Mark as Paid">
+                                    <i class="fas fa-dollar-sign"></i> Paid
+                                </button>
+                            </form>
+                            {% endif %}
+
                             {% if order.status == 'Pending' %}
                             <form action="/admin/orders/{{ order.id }}/approve" method="post" class="d-inline">
                                 <button type="submit" class="btn btn-sm btn-success me-1">Approve</button>
@@ -57,11 +79,17 @@
                                 <button type="submit" class="btn btn-sm btn-primary">Mark Delivered</button>
                             </form>
                             {% endif %}
+                            
+                            <form action="/admin/orders/{{ order.id }}/delete" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this order? This action cannot be undone.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" title="Delete Order">
+                                    <i class="bi bi-trash"></i> Delete
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">No orders found.</td>
+                        <td colspan="7" class="text-center py-4 text-muted">No orders found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
