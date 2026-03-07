@@ -55,6 +55,23 @@
                         <div class="form-text">Show the PayPal Smart Payment Buttons in the cart.</div>
                     </div>
                     <div class="col-md-6 mb-3">
+                        <label for="venmo_enabled" class="form-label">Enable Venmo Checkout</label>
+                        <select class="form-select" id="venmo_enabled" name="venmo_enabled">
+                            {% set v_val = settings | selectattr("key", "equalto", "venmo_enabled") | first %}
+                            {% if v_val and v_val.value == 'true' %}
+                            <option value="true" selected>Enabled</option>
+                            <option value="false">Disabled</option>
+                            {% else %}
+                            <option value="true">Enabled</option>
+                            <option value="false" selected>Disabled</option>
+                            {% endif %}
+                        </select>
+                        <div class="form-text">Enable Venmo as a payment option via PayPal SDK.</div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
                         <label for="paypal_mode" class="form-label">PayPal Environment</label>
                         <select class="form-select" id="paypal_mode" name="paypal_mode">
                             {% set m_val = settings | selectattr("key", "equalto", "paypal_mode") | first %}
@@ -67,6 +84,12 @@
                             {% endif %}
                         </select>
                         <div class="form-text text-danger">Use <strong>Sandbox</strong> for testing with your developer.paypal.com account.</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="venmo_username" class="form-label">Venmo Username (for direct display)</label>
+                        {% set u_val = settings | selectattr("key", "equalto", "venmo_username") | first %}
+                        <input type="text" class="form-control" id="venmo_username" name="venmo_username" value="{{ u_val.value if u_val else '' }}" placeholder="@username" autocomplete="off" data-lpignore="true">
+                        <div class="form-text">Optional: Displayed for manual Venmo transfers.</div>
                     </div>
                 </div>
 

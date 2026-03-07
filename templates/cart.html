@@ -88,20 +88,21 @@
                 <div id="paypal-button-container"></div>
                 <div class="form-text text-center mt-1">Pay securely with PayPal Business Checkout</div>
                 {% endif %}
+
             </div>
         </div>
 
-        {% if paypal_enabled == 'true' and paypal_client_id %}
-        <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD"></script>
+        {% if (paypal_enabled == 'true' or venmo_enabled == 'true') and paypal_client_id %}
+        <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD{% if venmo_enabled == 'true' %}&enable-funding=venmo{% endif %}"></script>
         <script>
-            paypal.Buttons({
+            const checkoutConfig = {
                 createOrder: function(data, actions) {
                     return actions.order.create({
                         purchase_units: [{
                             amount: {
                                 value: '{{ total_val }}'
                             },
-                            description: 'KC Portal Order'
+                            description: '{{ app_title }} Order'
                         }]
                     });
                 },
@@ -130,8 +131,23 @@
                             }
                         });
                     });
+                },
+                onError: function(err) {
+                    console.error('Checkout Error:', err);
+                    alert('An error occurred during the checkout process. Please try again or contact support.');
                 }
-            }).render('#paypal-button-container');
+            };
+
+            {% if paypal_enabled == 'true' %}
+            const paypalConfig = {
+                ...checkoutConfig
+            };
+            {% if venmo_enabled != 'true' %}
+            paypalConfig.disableFunding = [ paypal.FUNDING.VENMO ];
+            {% endif %}
+            paypal.Buttons(paypalConfig).render('#paypal-button-container');
+            {% endif %}
+
         </script>
         {% endif %}
         {% else %}
