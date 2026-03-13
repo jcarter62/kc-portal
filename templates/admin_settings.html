@@ -4,12 +4,12 @@
 
 {% block content %}
     <h1>Settings</h1>
-    <form method="post">
+    <form method="post" autocomplete="off">
         {% set grouped_settings = {} %}
         {% set other_settings = [] %}
         
         {% for setting in settings %}
-            {% if setting.key in ['paypal_client_id', 'paypal_enabled', 'paypal_mode', 'paypal_username', 'venmo_username'] %}
+            {% if setting.key in ['venmo_username', 'venmo_enabled'] %}
                 {# Group payment related settings together #}
             {% else %}
                 {% set _ = other_settings.append(setting) %}
@@ -27,7 +27,7 @@
                     {% if setting.key == 'manual_payment_instructions' %}
                     <textarea class="form-control" id="{{ setting.key }}" name="{{ setting.key }}" rows="3" autocomplete="off" data-lpignore="true">{{ setting.value }}</textarea>
                     {% else %}
-                    <input type="text" class="form-control" id="{{ setting.key }}" name="{{ setting.key }}" value="{{ setting.value }}" autocomplete="off" data-lpignore="true">
+                    <input type="text" class="form-control" id="{{ setting.key }}" name="{{ setting.key }}" value="{{ setting.value }}" autocomplete="one-time-code" data-lpignore="true">
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -36,26 +36,12 @@
 
         <div class="card mb-4 shadow-sm border-info">
             <div class="card-header bg-info text-dark">
-                <h5 class="mb-0"><i class="fab fa-paypal me-2"></i>Payment Settings (PayPal Checkout)</h5>
+                <h5 class="mb-0"><i class="fab fa-venmo me-2"></i>Payment Settings (Personal Venmo)</h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="paypal_enabled" class="form-label">Enable PayPal Checkout</label>
-                        <select class="form-select" id="paypal_enabled" name="paypal_enabled">
-                            {% set s_val = settings | selectattr("key", "equalto", "paypal_enabled") | first %}
-                            {% if s_val and s_val.value == 'true' %}
-                            <option value="true" selected>Enabled</option>
-                            <option value="false">Disabled</option>
-                            {% else %}
-                            <option value="true">Enabled</option>
-                            <option value="false" selected>Disabled</option>
-                            {% endif %}
-                        </select>
-                        <div class="form-text">Show the PayPal Smart Payment Buttons in the cart.</div>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="venmo_enabled" class="form-label">Enable Venmo Checkout</label>
+                        <label for="venmo_enabled" class="form-label">Enable Venmo Payment</label>
                         <select class="form-select" id="venmo_enabled" name="venmo_enabled">
                             {% set v_val = settings | selectattr("key", "equalto", "venmo_enabled") | first %}
                             {% if v_val and v_val.value == 'true' %}
@@ -66,38 +52,14 @@
                             <option value="false" selected>Disabled</option>
                             {% endif %}
                         </select>
-                        <div class="form-text">Enable Venmo as a payment option via PayPal SDK.</div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="paypal_mode" class="form-label">PayPal Environment</label>
-                        <select class="form-select" id="paypal_mode" name="paypal_mode">
-                            {% set m_val = settings | selectattr("key", "equalto", "paypal_mode") | first %}
-                            {% if m_val and m_val.value == 'live' %}
-                            <option value="sandbox">Sandbox (Testing)</option>
-                            <option value="live" selected>Live (Production)</option>
-                            {% else %}
-                            <option value="sandbox" selected>Sandbox (Testing)</option>
-                            <option value="live">Live (Production)</option>
-                            {% endif %}
-                        </select>
-                        <div class="form-text text-danger">Use <strong>Sandbox</strong> for testing with your developer.paypal.com account.</div>
+                        <div class="form-text">Show a personal Venmo payment link in the cart.</div>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <label for="venmo_username" class="form-label">Venmo Username (for direct display)</label>
+                        <label for="venmo_username" class="form-label">Venmo Username</label>
                         {% set u_val = settings | selectattr("key", "equalto", "venmo_username") | first %}
-                        <input type="text" class="form-control" id="venmo_username" name="venmo_username" value="{{ u_val.value if u_val else '' }}" placeholder="@username" autocomplete="off" data-lpignore="true">
-                        <div class="form-text">Optional: Displayed for manual Venmo transfers.</div>
+                        <input type="text" class="form-control" id="venmo_username" name="venmo_username" value="{{ u_val.value if u_val else '' }}" placeholder="@username" autocomplete="one-time-code" data-lpignore="true">
+                        <div class="form-text">Your personal Venmo username (e.g. @John-Doe).</div>
                     </div>
-                </div>
-
-                <div class="mb-3">
-                    <label for="paypal_client_id" class="form-label">PayPal Client ID</label>
-                    {% set c_val = settings | selectattr("key", "equalto", "paypal_client_id") | first %}
-                    <input type="text" class="form-control" id="paypal_client_id" name="paypal_client_id" value="{{ c_val.value if c_val else '' }}" autocomplete="off" data-lpignore="true">
-                    <div class="form-text">Obtain this from your <a href="https://developer.paypal.com/dashboard/applications" target="_blank">PayPal Developer Dashboard</a>. Make sure it matches the environment selected above.</div>
                 </div>
             </div>
         </div>
@@ -109,10 +71,10 @@
             <div class="card-body">
                 <div class="row g-2">
                     <div class="col-md">
-                        <input type="text" class="form-control" name="new_key" placeholder="Key (e.g. contact_email)" autocomplete="off" data-lpignore="true">
+                        <input type="text" class="form-control" name="new_key" placeholder="Key (e.g. contact_email)" autocomplete="one-time-code" data-lpignore="true">
                     </div>
                     <div class="col-md">
-                        <input type="text" class="form-control" name="new_value" placeholder="Value" autocomplete="off" data-lpignore="true">
+                        <input type="text" class="form-control" name="new_value" placeholder="Value" autocomplete="one-time-code" data-lpignore="true">
                     </div>
                 </div>
             </div>

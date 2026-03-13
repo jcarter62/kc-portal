@@ -443,12 +443,9 @@ async def startup_event():
         {"key": "email_text", "value": "Welcome to our portal"},
         {"key": "order_notification_email", "value": "admin@example.com"},
         {"key": "product_images_folder", "value": "product_images"},
-        {"key": "paypal_client_id", "value": ""},
-        {"key": "paypal_enabled", "value": "false"},
-        {"key": "paypal_mode", "value": "sandbox"},
         {"key": "venmo_enabled", "value": "false"},
         {"key": "venmo_username", "value": ""},
-        {"key": "manual_payment_instructions", "value": "Please pay via Check or Cash to the financial secretary."}
+        {"key": "manual_payment_instructions", "value": "Please pay via Venmo, Check, or Cash."}
     ]
     for setting_data in settings:
         if not db.query(models.Setting).filter(models.Setting.key == setting_data["key"]).first():

@@ -78,78 +78,26 @@
                     <div class="form-text text-center mt-1">Order will be marked as "Pending" until payment is confirmed</div>
                 </form>
 
-                {% if paypal_enabled == 'true' and paypal_client_id %}
-                <div class="text-center fw-bold text-muted my-1">— OR USE PAYPAL CHECKOUT —</div>
-                {% if paypal_mode == 'sandbox' %}
-                <div class="alert alert-warning py-1 px-2 mb-2 text-center small">
-                    <i class="fas fa-flask me-1"></i>PayPal SANDBOX Mode active
+                {% if venmo_enabled == 'true' and venmo_username %}
+                <div class="text-center fw-bold text-muted my-1">— PAY WITH VENMO —</div>
+                <div class="d-grid mb-2">
+                    <a href="https://venmo.com/{{ venmo_username | replace('@', '') }}?txn=pay&amount={{ '%.2f'|format(total_val) }}&note={{ (app_title ~ ' Order') | urlencode }}" 
+                       target="_blank" class="btn btn-info btn-lg shadow-sm text-white">
+                        <i class="fab fa-venmo me-2"></i>Pay ${{ "%.2f"|format(total_val) }} with Venmo
+                    </a>
                 </div>
-                {% endif %}
-                <div id="paypal-button-container"></div>
-                <div class="form-text text-center mt-1">Pay securely with PayPal Business Checkout</div>
+                <div class="alert alert-info py-2 px-3 mb-2 small">
+                    <i class="fas fa-info-circle me-1"></i> <strong>Steps:</strong>
+                    <ol class="mb-0 ps-3">
+                        <li>Click the button above to pay via Venmo.</li>
+                        <li>Return here and click <strong>Submit Order Request</strong> below to complete your order.</li>
+                    </ol>
+                </div>
                 {% endif %}
 
             </div>
         </div>
 
-        {% if (paypal_enabled == 'true' or venmo_enabled == 'true') and paypal_client_id %}
-        <script src="https://www.paypal.com/sdk/js?client-id={{ paypal_client_id }}&currency=USD{% if venmo_enabled == 'true' %}&enable-funding=venmo{% endif %}"></script>
-        <script>
-            const checkoutConfig = {
-                createOrder: function(data, actions) {
-                    return actions.order.create({
-                        purchase_units: [{
-                            amount: {
-                                value: '{{ total_val }}'
-                            },
-                            description: '{{ app_title }} Order'
-                        }]
-                    });
-                },
-                onApprove: function(data, actions) {
-                    return actions.order.capture().then(function(details) {
-                        // Send order details to our server
-                        return fetch('/store/complete-paypal-order', {
-                            method: 'post',
-                            headers: {
-                                'content-type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                orderID: data.orderID,
-                                status: details.status,
-                                details: details
-                            })
-                        }).then(function(response) {
-                            if (response.ok) {
-                                window.location.href = '/store/order-products?message=Your+order+has+been+paid+and+submitted+successfully.';
-                            } else {
-                                response.json().then(function(data) {
-                                    alert('There was an error saving your order: ' + (data.error || 'Unknown error') + '. Please contact the administrator.');
-                                }).catch(function() {
-                                    alert('There was an error saving your order. Please contact the administrator.');
-                                });
-                            }
-                        });
-                    });
-                },
-                onError: function(err) {
-                    console.error('Checkout Error:', err);
-                    alert('An error occurred during the checkout process. Please try again or contact support.');
-                }
-            };
-
-            {% if paypal_enabled == 'true' %}
-            const paypalConfig = {
-                ...checkoutConfig
-            };
-            {% if venmo_enabled != 'true' %}
-            paypalConfig.disableFunding = [ paypal.FUNDING.VENMO ];
-            {% endif %}
-            paypal.Buttons(paypalConfig).render('#paypal-button-container');
-            {% endif %}
-
-        </script>
-        {% endif %}
         {% else %}
         <div class="text-center py-5 card shadow-sm">
             <div class="card-body">

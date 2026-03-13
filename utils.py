@@ -3,6 +3,7 @@ import smtplib
 from email.message import EmailMessage
 from datetime import datetime
 import re
+import urllib.parse
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -36,6 +37,13 @@ def format_phone_number(phone: str) -> str:
     return phone
 
 templates.env.filters["format_phone"] = format_phone_number
+
+def urlencode_filter(s):
+    if s is None:
+        return ""
+    return urllib.parse.quote(str(s))
+
+templates.env.filters["urlencode"] = urlencode_filter
 
 def get_current_user(request: Request, db: Session):
     user_id = request.cookies.get("user_id")
