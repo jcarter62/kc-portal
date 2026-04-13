@@ -109,12 +109,17 @@ async def view_cart(request: Request, db: Session = Depends(get_db)):
             "subtotal": subtotal_str
         })
             
+    users = []
+    if user.is_admin:
+        users = db.query(models.User).order_by(models.User.last_name, models.User.first_name).all()
+            
     return render_template("cart.html", {
         "request": request, 
         "user": user, 
         "cart": display_cart, 
         "total": f"${total_val:,.2f}",
-        "total_val": total_val
+        "total_val": total_val,
+        "users": users
     }, db)
 
 @router.get("/cart/remove/{index}")
@@ -126,10 +131,16 @@ async def remove_from_cart(request: Request, index: int):
     return RedirectResponse(url="/store/cart", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/checkout")
-async def checkout(request: Request, db: Session = Depends(get_db)):
+async def checkout(request: Request, on_behalf_of: Optional[int] = Form(None), db: Session = Depends(get_db)):
     user = get_current_user(request, db)
     if not user:
         return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+    
+    order_user = user
+    if user.is_admin and on_behalf_of:
+        target_user = db.query(models.User).filter(models.User.id == on_behalf_of).first()
+        if target_user:
+            order_user = target_user
     
     cart = request.session.get("cart", [])
     if not cart:
@@ -143,7 +154,7 @@ async def checkout(request: Request, db: Session = Depends(get_db)):
         except (ValueError, AttributeError, TypeError):
             pass
     
-    order = models.Order(user_id=user.id, total_price=f"${total_val:,.2f}")
+    order = models.Order(user_id=order_user.id, total_price=f"${total_val:,.2f}")
     db.add(order)
     db.flush()
     
@@ -165,7 +176,7 @@ async def checkout(request: Request, db: Session = Depends(get_db)):
     settings_dict = get_settings_dict(db)
     admin_email = settings_dict.get("order_notification_email")
     
-    subject = f"New Product Order - {user.first_name} {user.last_name}"
+    subject = f"New Product Order - {order_user.first_name} {order_user.last_name}"
     items_text = ""
     for item in cart:
         items_text += f"- {item['product_name']} (Qty: {item['quantity']})"
@@ -174,21 +185,27 @@ async def checkout(request: Request, db: Session = Depends(get_db)):
         if item['text']: items_text += f", Text: {item['text']}"
         items_text += f", Price: {item['price']}\n"
         
-    content = f"New order has been placed by {user.first_name} {user.last_name} ({user.membership_number}).\n\nItems:\n{items_text}\nTotal Amount: ${total_val:,.2f}\n"
+    content = f"New order has been placed for {order_user.first_name} {order_user.last_name} ({order_user.membership_number})"
+    if user.id != order_user.id:
+        content += f" by Admin {user.first_name} {user.last_name}"
+    content += f".\n\nItems:\n{items_text}\nTotal Amount: ${total_val:,.2f}\n"
     
     if admin_email:
         send_email(admin_email, subject, content)
     
-    if user.email:
-        send_email(user.email, "Order Confirmation", f"Thank you for your order. Your order is currently pending approval.\n\nDetails:\n{content}")
+    if order_user.email:
+        send_email(order_user.email, "Order Confirmation", f"Thank you for your order. Your order is currently pending approval.\n\nDetails:\n{content}")
     
+    if user.id != order_user.id and user.email:
+        send_email(user.email, "Order Placed on Behalf", f"You have successfully placed an order on behalf of {order_user.first_name} {order_user.last_name}.\n\nDetails:\n{content}")
+
     # Clear cart
     request.session["cart"] = []
     
     return render_template("order_products.html", {
         "request": request, 
         "user": user, 
-        "message": "Your order has been placed successfully and is pending approval.", 
+        "message": f"Order has been placed successfully for {order_user.first_name} {order_user.last_name} and is pending approval.", 
         "products": db.query(models.Product).all()
     }, db)
 

@@ -72,6 +72,19 @@
                 {% endif %}
 
                 <form action="/store/checkout" method="post" onsubmit="return confirm('Submit this order for approval?');">
+                    {% if user.is_admin and users %}
+                    <div class="mb-3">
+                        <label for="on_behalf_of" class="form-label fw-bold"><i class="fas fa-user-friends me-1"></i>Order on behalf of:</label>
+                        <select name="on_behalf_of" id="on_behalf_of" class="form-select">
+                            <option value="{{ user.id }}">Myself ({{ user.first_name }} {{ user.last_name }})</option>
+                            {% for u in users %}
+                                {% if u.id != user.id %}
+                                <option value="{{ u.id }}">{{ u.first_name }} {{ u.last_name }} ({{ u.membership_number }})</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
                     <button type="submit" class="btn btn-success btn-lg w-100 px-5 shadow-sm mb-2">
                         <i class="fas fa-check-circle me-2"></i>Submit Order Request
                     </button>
