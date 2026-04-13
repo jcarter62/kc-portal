@@ -106,4 +106,11 @@ def render_template(template_name: str, context: dict, db: Session):
         context.update(app_settings)
     except Exception:
         pass
+    
+    # Newer Starlette versions require the request object as the first argument
+    request = context.get("request")
+    if request:
+        return templates.TemplateResponse(request, template_name, context)
+    
+    # Fallback for older versions or missing request
     return templates.TemplateResponse(template_name, context)
