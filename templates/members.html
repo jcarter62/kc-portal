@@ -38,6 +38,9 @@
                         <strong>Phone:</strong> {{ member.phone_number }}<br>
                         <strong>Email:</strong> {{ member.email }}
                     </p>
+                    <a href="/members/{{ member.id }}/vcard" class="btn btn-sm btn-outline-secondary mt-2">
+                        <i class="fas fa-address-card"></i> Add to Contacts
+                    </a>
                 </div>
             </div>
         </div>

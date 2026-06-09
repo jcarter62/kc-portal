@@ -34,6 +34,10 @@
             const today = new Date();
             today.setHours(0, 0, 0, 0);
 
+            const daysInPast = parseInt("{{ days_in_past_to_show | default(0) }}", 10) || 0;
+            const thresholdDate = new Date(today);
+            thresholdDate.setDate(today.getDate() - daysInPast);
+
             let hasPastEvents = false;
 
             tables.forEach(table => {
@@ -72,7 +76,7 @@
                         }
                     });
 
-                    if (eventDate && eventDate < today) {
+                    if (eventDate && eventDate < thresholdDate) {
                         row.classList.add('past-event', 'collapsed-row');
                         hasPastEvents = true;
                     }

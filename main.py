@@ -389,6 +389,45 @@ async def download_contact_list(
     }
     return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
+from fastapi import Response
+
+@app.get("/members/{member_id}/vcard")
+async def download_vcard(member_id: int, request: Request, db: Session = Depends(get_db)):
+    user = get_current_user(request, db)
+    if not user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
+
+    member = db.query(models.User).filter(models.User.id == member_id).first()
+    if not member:
+        raise HTTPException(status_code=404, detail="Member not found")
+
+    vcard = [
+        "BEGIN:VCARD",
+        "VERSION:3.0",
+        f"N:{member.last_name or ''};{member.first_name or ''};;;",
+        f"FN:{(member.first_name or '')} {(member.last_name or '')}".strip(),
+    ]
+    
+    if member.phone_number:
+        vcard.append(f"TEL;TYPE=CELL:{member.phone_number}")
+        
+    if member.email:
+        vcard.append(f"EMAIL:{member.email}")
+        
+    if member.position:
+        vcard.append(f"TITLE:{member.position}")
+        
+    vcard.append("END:VCARD")
+    vcard_content = "\r\n".join(vcard)
+    
+    filename = f"{member.first_name or 'contact'}_{member.last_name or 'vcard'}.vcf".replace(" ", "_").lower()
+    
+    return Response(
+        content=vcard_content,
+        media_type="text/vcard",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
 @app.get("/calendar", response_class=HTMLResponse)
 async def calendar(request: Request, db: Session = Depends(get_db)):
     user = get_current_user(request, db)
@@ -443,6 +482,7 @@ async def startup_event():
         {"key": "email_text", "value": "Welcome to our portal"},
         {"key": "order_notification_email", "value": "admin@example.com"},
         {"key": "product_images_folder", "value": "product_images"},
+        {"key": "days_in_past_to_show", "value": "30"},
         {"key": "venmo_enabled", "value": "false"},
         {"key": "venmo_username", "value": ""},
         {"key": "manual_payment_instructions", "value": "Please pay via Venmo, Check, or Cash."}
