@@ -40,6 +40,73 @@
 
             let hasPastEvents = false;
 
+            function escapeICS(str) {
+                return str.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r/g, '').replace(/\n/g, '\\n');
+            }
+
+            function foldLine(line) {
+                let result = "";
+                while (line.length > 75) {
+                    result += line.substring(0, 75) + "\r\n ";
+                    line = line.substring(75);
+                }
+                result += line + "\r\n";
+                return result;
+            }
+
+            function generateICS(events) {
+                let icsContent = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//KC Portal//Calendar//EN\r\n";
+                
+                events.forEach(ev => {
+                    icsContent += "BEGIN:VEVENT\r\n";
+                    
+                    const dt = ev.date;
+                    const dateStr = dt.getFullYear() + 
+                                    String(dt.getMonth() + 1).padStart(2, '0') + 
+                                    String(dt.getDate()).padStart(2, '0');
+                    icsContent += `DTSTART;VALUE=DATE:${dateStr}\r\n`;
+                    
+                    const nextDay = new Date(dt);
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    const nextDateStr = nextDay.getFullYear() + 
+                                        String(nextDay.getMonth() + 1).padStart(2, '0') + 
+                                        String(nextDay.getDate()).padStart(2, '0');
+                    icsContent += `DTEND;VALUE=DATE:${nextDateStr}\r\n`;
+                    
+                    let summary = "Calendar Event";
+                    for(let d of ev.details) {
+                        if (!d.header.toLowerCase().includes('date') && d.value) {
+                            summary = d.value;
+                            break;
+                        }
+                    }
+                    icsContent += `SUMMARY:${escapeICS(summary)}\r\n`;
+                    
+                    let desc = "Event Details:\n\n";
+                    ev.details.forEach(d => {
+                        if (d.value) {
+                            desc += `${d.header}: ${d.value}\n`;
+                        }
+                    });
+                    
+                    const pageUrl = window.location.origin + "/calendar";
+                    desc += `\nMore details: ${pageUrl}`;
+                    
+                    icsContent += foldLine(`DESCRIPTION:${escapeICS(desc)}`);
+                    icsContent += "END:VEVENT\r\n";
+                });
+                
+                icsContent += "END:VCALENDAR\r\n";
+                
+                const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = window.URL.createObjectURL(blob);
+                link.setAttribute('download', 'event.ics');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
             tables.forEach(table => {
                 table.classList.add('table-stackable');
                 const rows = Array.from(table.querySelectorAll('tr'));
@@ -54,14 +121,18 @@
 
                     const cells = row.querySelectorAll('td');
                     let eventDate = null;
+                    let eventData = { details: [] };
 
                     cells.forEach((cell, cellIndex) => {
                         if (headers[cellIndex]) {
-                            cell.setAttribute('data-label', headers[cellIndex]);
+                            const header = headers[cellIndex];
+                            cell.setAttribute('data-label', header);
+                            const cellText = cell.textContent.trim();
+                            eventData.details.push({ header: header, value: cellText });
 
                             // Try to parse date from the first column (usually "Date")
-                            if (headers[cellIndex].toLowerCase().includes('date')) {
-                                const dateStr = cell.textContent.trim();
+                            if (header.toLowerCase().includes('date')) {
+                                const dateStr = cellText;
                                 // Handle MM/DD/YYYY format
                                 const dateParts = dateStr.split('/');
                                 if (dateParts.length === 3) {
@@ -70,15 +141,34 @@
                                     const year = parseInt(dateParts[2]);
                                     if (!isNaN(month) && !isNaN(day) && !isNaN(year)) {
                                         eventDate = new Date(year, month, day);
+                                        eventData.date = eventDate;
                                     }
                                 }
                             }
                         }
                     });
 
-                    if (eventDate && eventDate < thresholdDate) {
-                        row.classList.add('past-event', 'collapsed-row');
-                        hasPastEvents = true;
+                    if (eventDate) {
+                        if (eventDate < thresholdDate) {
+                            row.classList.add('past-event', 'collapsed-row');
+                            hasPastEvents = true;
+                        }
+
+                        const lastCell = cells[cells.length - 1];
+                        if (lastCell) {
+                            const btn = document.createElement('button');
+                            btn.className = 'btn btn-sm btn-outline-primary';
+                            btn.innerHTML = '<i class="fas fa-calendar-plus"></i> Add to Calendar';
+                            btn.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                generateICS([eventData]);
+                            });
+                            
+                            const div = document.createElement('div');
+                            div.className = 'mt-2';
+                            div.appendChild(btn);
+                            lastCell.appendChild(div);
+                        }
                     }
                 });
             });
@@ -86,6 +176,7 @@
             if (hasPastEvents) {
                 const controlsDiv = document.createElement('div');
                 controlsDiv.className = 'calendar-controls';
+
                 const toggleBtn = document.createElement('button');
                 toggleBtn.id = 'toggle-past-events';
                 toggleBtn.className = 'btn btn-outline-secondary btn-sm';
@@ -93,6 +184,7 @@
 
                 toggleBtn.addEventListener('click', function() {
                     const pastRows = document.querySelectorAll('.past-event');
+                    if (pastRows.length === 0) return;
                     const isCollapsed = pastRows[0].classList.contains('collapsed-row');
 
                     pastRows.forEach(row => {
