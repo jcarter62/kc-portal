@@ -75,7 +75,7 @@
                     
                     let summary = "Calendar Event";
                     for(let d of ev.details) {
-                        if (!d.header.toLowerCase().includes('date') && d.value) {
+                        if (!d.header.toLowerCase().includes('date') && !d.header.toLowerCase().includes('time') && d.value) {
                             summary = d.value;
                             break;
                         }
@@ -83,13 +83,17 @@
                     icsContent += `SUMMARY:${escapeICS(summary)}\r\n`;
                     
                     let desc = "Event Details:\n\n";
+                    let eventLink = null;
                     ev.details.forEach(d => {
                         if (d.value) {
                             desc += `${d.header}: ${d.value}\n`;
                         }
+                        if (d.link && !eventLink) {
+                            eventLink = d.link;
+                        }
                     });
                     
-                    const pageUrl = window.location.origin + "/calendar";
+                    const pageUrl = eventLink || (window.location.origin + "/calendar");
                     desc += `\nMore details: ${pageUrl}`;
                     
                     icsContent += foldLine(`DESCRIPTION:${escapeICS(desc)}`);
@@ -128,7 +132,9 @@
                             const header = headers[cellIndex];
                             cell.setAttribute('data-label', header);
                             const cellText = cell.textContent.trim();
-                            eventData.details.push({ header: header, value: cellText });
+                            const aTag = cell.querySelector('a');
+                            const link = aTag ? aTag.href : null;
+                            eventData.details.push({ header: header, value: cellText, link: link });
 
                             // Try to parse date from the first column (usually "Date")
                             if (header.toLowerCase().includes('date')) {
